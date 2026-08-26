@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>商业身份</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <h1>商业身份</h1>
+        <span class="en">Identity Atelier</span>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost" type="button" id="btn-demo">填一份演示</button>
+        <button class="btn ghost" type="button" id="btn-reset">清空</button>
+        <button class="btn" type="button" id="btn-print">打印 / 存 PDF</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="inquiry">
+        <article class="q" id="q-audience">
+          <div class="q-kicker">01</div>
+          <h2>这份身份要递给谁</h2>
+          <p class="lead">对方是谁，决定你该被看成谁。名片不是自我介绍，是给对方的一个抓手。</p>
+          <div class="chips" data-field="audience"></div>
+          <div class="other" data-other="audience">
+            <input type="text" placeholder="对方是谁，用你的话说" maxlength="40" />
+          </div>
+        </article>
+
+        <article class="q" id="q-scene">
+          <div class="q-kicker">02</div>
+          <h2>在什么场合递出去</h2>
+          <p class="lead">大会上的三秒扫视，和饭桌上隔着酒杯递过去，不是同一张卡。</p>
+          <div class="chips" data-field="scene"></div>
+          <div class="other" data-other="scene">
+            <input type="text" placeholder="场合，用你的话说" maxlength="40" />
+          </div>
+        </article>
+
+        <article class="q" id="q-purpose">
+          <div class="q-kicker">03</div>
+          <h2>你希望相遇之后发生什么</h2>
+          <p class="lead">求职、谈成一单、留下一个微信——目的不同，卡上该出现的字就不同。</p>
+          <div class="chips" data-field="purpose"></div>
+          <div class="other" data-other="purpose">
+            <input type="text" placeholder="目的，用你的话说" maxlength="40" />
+          </div>
+        </article>
+
+        <article class="q" id="q-stage">
+          <div class="q-kicker">04</div>
+          <h2>你现在处于哪一段</h2>
+          <p class="lead">在职悄悄看机会，和已经公开求职，能印上去的东西不一样。</p>
+          <div class="chips" data-field="stage"></div>
+          <div class="other" data-other="stage">
+            <input type="text" placeholder="你的阶段" maxlength="40" />
+          </div>
+        </article>
+
+        <article class="q" id="q-profile">
+          <div class="q-kicker">05</div>
+          <h2>你是谁（可空）</h2>
+          <p class="lead">材料是原料，不是名片本身。空着也能先出策略；有名字，卡才能真正递得出去。</p>
+          <div class="fields">
+            <div>
+              <label for="f-name">姓名</label>
+              <input id="f-name" data-profile="name" maxlength="20" />
+            </div>
+            <div>
+              <label for="f-nameEn">英文名</label>
+              <input id="f-nameEn" data-profile="nameEn" maxlength="40" />
+            </div>
+            <div>
+              <label for="f-title">头衔 / 职能</label>
+              <input id="f-title" data-profile="title" maxlength="30" />
+            </div>
+            <div>
+              <label for="f-company">组织 / 公司</label>
+              <input id="f-company" data-profile="company" maxlength="30" />
+            </div>
+            <div>
+              <label for="f-city">城市</label>
+              <input id="f-city" data-profile="city" maxlength="12" />
+            </div>
+            <div>
+              <label for="f-wechat">微信</label>
+              <input id="f-wechat" data-profile="wechat" maxlength="30" />
+            </div>
+            <div>
+              <label for="f-phone">电话</label>
+              <input id="f-phone" data-profile="phone" maxlength="20" />
+            </div>
+            <div>
+              <label for="f-email">邮箱</label>
+              <input id="f-email" data-profile="email" maxlength="60" />
+            </div>
+            <div class="wide">
+              <label for="f-website">站点</label>
+              <input id="f-website" data-profile="website" maxlength="60" />
+            </div>
+            <div class="wide">
+              <label for="f-pitch">一句定位（可空，空则由策略写）</label>
+              <input id="f-pitch" data-profile="pitch" maxlength="40" />
+            </div>
+            <div class="wide">
+              <label>头像 / 附件</label>
+              <div class="file-row">
+                <button class="btn" type="button" id="btn-portrait">选择头像</button>
+                <button class="btn ghost" type="button" id="btn-file">选择附件</button>
+                <input id="in-portrait" type="file" accept="image/*" />
+                <input id="in-file" type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.webp" />
+                <span class="file-chip" id="portrait-chip" hidden></span>
+                <span class="file-chip" id="file-chip" hidden></span>
+                <button class="btn ghost" type="button" id="btn-clear-files" hidden>去掉文件</button>
+              </div>
+              <p class="hint">头像仅在部分立场上卡；附件（简历等）只作原料标记，MVP 不解析 PDF。</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="studio">
+        <div class="studio-head">
+          <h2>这份身份</h2>
+          <div class="formula" id="formula"></div>
+        </div>
+        <p class="status" id="status"></p>
+        <div class="stance-row" id="stances"></div>
+        <div class="brief" id="brief"></div>
+        <div class="edits">
+          <div>
+            <label for="e-headline">对外身份（可改）</label>
+            <input id="e-headline" maxlength="40" />
+          </div>
+          <div>
+            <label for="e-pitch">对外一句（可改）</label>
+            <input id="e-pitch" maxlength="40" />
+          </div>
+        </div>
+        <div class="cards" id="cards"></div>
+        <div class="prompts">
+          <article class="prompt">
+            <header>
+              <h3>中文生图提示词</h3>
+              <button class="btn chop" type="button" data-copy="zh">复制</button>
+            </header>
+            <pre id="prompt-zh"></pre>
+          </article>
+          <article class="prompt">
+            <header>
+              <h3>English image prompt</h3>
+              <button class="btn chop" type="button" data-copy="en">Copy</button>
+            </header>
+            <pre id="prompt-en"></pre>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <div id="print-sheet"></div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
