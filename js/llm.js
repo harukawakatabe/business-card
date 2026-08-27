@@ -249,17 +249,17 @@ const SPEC_SCHEMA = {
       properties: {
         nameFamily: { type: "string", enum: ["display", "serif", "sans", "mono"] },
         nameSize: { type: "number", description: "姓名字号 4.6-12.5（cqw）" },
-        nameTrack: { type: "number", description: "姓名字距 0-0.5（em）" },
+        nameTrack: { type: "number", description: "姓名字距。中文衬线/海报体不要超过 0.18，过大会缺笔、上下被裁" },
         nameWeight: { type: "number", enum: [200, 300, 400, 500, 600, 700] },
         nameVertical: { type: "boolean", description: "姓名是否沿侧边竖排。为 true 时应在同侧放一条宽色块 edge" },
         nameSide: { type: "string", enum: ["left", "right"] },
         nameColor: { ...REF, description: "竖排压在色块上时要给一个能在色块上看清的颜色" },
         mastheadSize: { type: "number", description: "上排小字 2.2-3.8（cqw）。90mm 卡上低于 2.2 会看不清，不要再小" },
-        mastheadTrack: { type: "number", description: "上排字距 0-0.6（em）" },
+        mastheadTrack: { type: "number", description: "上排字距。中文组织名不要超过 0.22" },
         mastheadColor: REF,
         upperMasthead: { type: "boolean", description: "上排是否转大写。中文组织名建议 false" },
         roleSize: { type: "number", description: "姓名下标签 2.3-4.2（cqw）。中文标签默认 2.8 左右" },
-        roleTrack: { type: "number", description: "标签字距 0-0.45（em）" },
+        roleTrack: { type: "number", description: "标签字距。中文不要超过 0.12，过大会像漏字" },
         roleColor: REF,
         contactSize: { type: "number", description: "底栏联系 2.2-3.6（cqw）。电话邮箱默认 2.6 左右，不要做成微缩字" },
         contactAlign: { type: "string", enum: ["left", "center", "right"] },
@@ -340,6 +340,7 @@ const STYLE_SYSTEM = `你是一位为高管和创业者做「对外身份」的�
 7. 若 nameVertical 为 true，必须在同一侧放一条宽度 22-34 的 edge 色块，并给 nameColor 一个能压在色块上看清的颜色。
 8. 场合越嘈杂、阅读时间越短，字号越大、条目越少。上排 / 姓名下 / 底栏不要低于约 2.4cqw——90×54mm 上更小的字印出来等于没有。
 9. 色相按这次相遇自己选。模板有墨金、骨白青、夜橙、陶土、雪墨、亚麻紫、朱砂、海纹、松墨、青瓷、黛蓝、玫瑰木、石墨、琥珀、象牙酒红、玄银、青砖、麦秆，也可以自创，只要印得出、看得清。工作室网页的雪松绿与名片无关。
+10. 中文不要拉大字距、不要压行高。宋体和海报体出格会缺笔，看起来像错字；姓名下标签尤其如此。字距宁紧勿松，行高必须让横笔和宝盖完整露出来。
 
 先读懂设计稿的气质要求，再决定纸面。不要解释，直接调用工具提交。`;
 

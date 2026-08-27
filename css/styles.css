@@ -164,6 +164,8 @@ a.btn {
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.16em;
+  line-height: 1.7;
+  padding-block: 0.15em;
   color: var(--accent);
 }
 
@@ -670,8 +672,7 @@ a.btn {
   color: var(--masthead-color, var(--card-muted));
   line-height: 1.45;
   white-space: nowrap;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   padding-block: 0.08em;
 }
 
@@ -720,8 +721,7 @@ a.btn {
   font-weight: var(--name-weight, 600);
   color: var(--name-color, var(--card-fg));
   white-space: nowrap;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   max-width: 100%;
   padding-block: 0.1em;
 }
@@ -759,8 +759,7 @@ a.btn {
   letter-spacing: var(--role-track, 0.12em);
   line-height: var(--role-leading, 1.42);
   color: var(--role-color, var(--card-muted));
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   white-space: nowrap;
   max-width: 100%;
   padding-block: 0.1em;

@@ -225,7 +225,6 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
   };
 
   fitType(spec);
-  fitType(spec);
   fitSides(spec);
   return spec;
 }

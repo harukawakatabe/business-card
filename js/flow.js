@@ -7,7 +7,6 @@ import {
   AUDIENCES,
   DEMO,
   EMPTY_PROFILE,
-  PALETTE_FAMILIES,
   PURPOSES,
   SCENES,
   STAGES,
@@ -29,10 +28,10 @@ const FIELDS = [
   ["stage", STAGES],
 ];
 
-const CRAFT_STEPS = [
-  { id: "read", title: "顾问已读", jump: "" },
-  { id: "brief", title: "设计稿已出", jump: "brief-sheet" },
-  { id: "styles", title: "三版视觉", jump: "candidates" },
+const FOLIO = [
+  { id: "read", title: "顾问阅读资料", leaf: "其一", jump: "" },
+  { id: "brief", title: "设计稿", leaf: "其二", jump: "brief-sheet" },
+  { id: "styles", title: "三版视觉", leaf: "其三", jump: "candidates" },
 ];
 
 let archive = loadArchive();
@@ -136,7 +135,7 @@ function renderRail() {
 }
 
 function craftState(stepId, scheme) {
-  const order = CRAFT_STEPS.map((s) => s.id);
+  const order = FOLIO.map((s) => s.id);
   const idx = order.indexOf(stepId);
   const now = order.indexOf(phase);
   if (phase !== "idle") {
@@ -151,43 +150,45 @@ function craftState(stepId, scheme) {
   return hasStyles ? "done" : "wait";
 }
 
+function folioPage(scheme) {
+  if (phase === "read") return FOLIO[0];
+  if (phase === "brief") return FOLIO[1];
+  if (phase === "styles") return FOLIO[2];
+  if (scheme.candidates.length) return FOLIO[2];
+  if (scheme.brief) return FOLIO[1];
+  return FOLIO[0];
+}
+
 function renderCraft(scheme) {
-  document.getElementById("craft").innerHTML = CRAFT_STEPS.map((step, i) => {
+  const page = folioPage(scheme);
+  const marks = FOLIO.map((step) => {
     const state = craftState(step.id, scheme);
-    const jump = state === "done" && step.jump;
-    const mark = `<button class="craft-mark is-${state}${jump ? " is-jump" : ""}" type="button" data-craft="${
-      step.id
-    }" ${jump ? "" : "disabled"}>${escapeHtml(step.title)}</button>`;
-    const dot = i ? `<i aria-hidden="true">·</i>` : "";
-    return dot + mark;
+    const on = page.id === step.id ? " is-on" : "";
+    const jump = (state === "done" || state === "now") && step.jump;
+    return `<li>
+        <button class="${on.trim()}${jump ? " is-jump" : ""}" type="button" data-craft="${step.id}" ${
+          jump ? "" : "disabled"
+        }>${escapeHtml(step.leaf)}</button>
+      </li>`;
   }).join("");
+  document.getElementById("craft").innerHTML =
+    `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(page.title)}</p></div>` +
+    `<ol class="folio-marks">${marks}</ol>`;
 }
 
 function renderPick(strategy) {
   const scheme = ensureActive();
   const goNote = document.getElementById("go-note");
-  if (note.text) {
+  if (note.error && note.text) {
     goNote.textContent = note.text;
-  } else if (scheme.candidates.length) {
-    goNote.textContent = scheme.styleSpec
-      ? `当前用「${scheme.styleSpec.name}」。文案由这场相遇的设计稿决定。`
-      : "点一版采纳。";
+  } else if (!busy && scheme.candidates.length && !scheme.styleSpec) {
+    goNote.textContent = "点一版采纳。";
   } else {
-    goNote.textContent = "答完上面四问，点「生成这份身份」。没有 key 也会出规则草稿和三套内置视觉。";
+    goNote.textContent = "";
   }
   goNote.classList.toggle("is-error", note.error);
 
   renderCraft(scheme);
-
-  const draw = document.getElementById("palette-draw");
-  if (scheme.paletteDraw?.length) {
-    const labels = scheme.paletteDraw
-      .map((id) => PALETTE_FAMILIES.find((f) => f.id === id)?.label || id)
-      .join(" · ");
-    draw.textContent = `本轮抽中色系：${labels}`;
-  } else {
-    draw.textContent = "";
-  }
 
   document.getElementById("candidates").innerHTML = scheme.candidates
     .map((spec, i) => {
@@ -262,7 +263,7 @@ async function generate() {
   }
   busy = true;
   phase = "read";
-  note = { text: "顾问在读这场相遇和你的资历…", error: false };
+  note = { text: "", error: false };
   render({ skipInputs: true });
 
   const composeState = toComposeState(archive, scheme);
@@ -270,7 +271,7 @@ async function generate() {
   try {
     scheme.brief = await requestBrief(ctx);
     phase = "brief";
-    note = { text: "设计稿已出，接着出三版视觉…", error: false };
+    note = { text: "", error: false };
     persist();
     render({ skipInputs: true });
   } catch (err) {
@@ -294,12 +295,7 @@ async function generate() {
     );
     scheme.candidates = specs;
     scheme.styleSpec = specs[0] || null;
-    note = {
-      text: note.error
-        ? `${note.text} 视觉已出。本轮色系 ${drawn.map((f) => f.label).join("、")}。`
-        : `三版已出（${drawn.map((f) => f.label).join("、")}）。点一版采纳。`,
-      error: note.error,
-    };
+    note = { text: "", error: note.error };
   } catch (err) {
     scheme.candidates = fallbackTrio();
     scheme.styleSpec = scheme.candidates[0];
@@ -413,7 +409,7 @@ function bind() {
   document.getElementById("craft").addEventListener("click", (event) => {
     const btn = event.target.closest("[data-craft]");
     if (!btn || btn.disabled) return;
-    const step = CRAFT_STEPS.find((s) => s.id === btn.dataset.craft);
+    const step = FOLIO.find((s) => s.id === btn.dataset.craft);
     const target = step?.jump && document.getElementById(step.jump);
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   });

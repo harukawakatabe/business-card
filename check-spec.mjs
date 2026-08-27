@@ -62,6 +62,11 @@ function auditSpec(label, spec) {
   const pad = spec.frame.pad;
   if (pad.l + pad.r > 78) bad(`${label} 左右留白合计 ${pad.l + pad.r}%，正文没地方了`);
   if (pad.t + pad.b > 40) bad(`${label} 上下留白合计 ${pad.t + pad.b}%`);
+  if (spec.type.nameFamily !== "sans" && spec.type.nameTrack > 0.181) {
+    bad(`${label} 衬线/海报体姓名字距 ${spec.type.nameTrack}，会缺笔`);
+  }
+  if (spec.type.roleTrack > 0.121) bad(`${label} 姓名下字距 ${spec.type.roleTrack}，中文会缺笔`);
+  if ((spec.type.nameLeading || 0) < 1.28) bad(`${label} 姓名行高过紧，上下会被裁`);
 }
 
 function auditPrintFit(label, design) {
@@ -427,6 +432,7 @@ for (const [i, g] of garbage.entries()) {
 
   const cardCss = readFileSync(new URL("./css/styles.css", import.meta.url), "utf8");
   if (/text-overflow:\s*ellipsis/.test(cardCss)) bad("名片 CSS 不许用省略号截断文字");
+  if (/line-height:\s*1\.12/.test(cardCss)) bad("姓名行高 1.12 会裁掉衬线体上下");
 
   const four = [
     { key: "phone", label: "电话", value: "138 0013 8000" },
