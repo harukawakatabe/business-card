@@ -1,24 +1,26 @@
 /**
- * 产品版：一份人物料，多场相遇；答完四问一键出设计稿 + 三版视觉，导出 PNG / vCard。
- * 工作室 index.html 不动。
+ * 产品版首页：一份人物料，多场相遇；答完四问一键出设计稿 + 三版视觉，导出 PNG / PDF / vCard。
+ * 工作室在 studio.html。
  */
 
 import {
   AUDIENCES,
   DEMO,
   EMPTY_PROFILE,
+  PALETTE_FAMILIES,
   PURPOSES,
   SCENES,
   STAGES,
+  pickPaletteFamilies,
 } from "./data.js";
 import { briefContext, compose } from "./strategy.js";
 import { designCard } from "./design.js";
-import { briefRows } from "./brief.js";
+import { briefNodes } from "./brief.js";
 import { PRESETS, sanitizeSpec } from "./style-spec.js";
 import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { loadArchive, newScheme, questionsFilled, saveArchive, schemeTitle, toComposeState } from "./archive.js";
-import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W } from "./export.js";
+import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
 
 const FIELDS = [
   ["scene", SCENES],
@@ -47,7 +49,12 @@ function persist() {
 }
 
 function fallbackTrio() {
-  return ["authority", "credible", "creative"].map((id) => sanitizeSpec(PRESETS[id], `preset-${id}`));
+  const ids = Object.keys(PRESETS);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return ids.slice(0, 3).map((id) => sanitizeSpec(PRESETS[id], `preset-${id}-${Date.now()}`));
 }
 
 function composeNow() {
@@ -100,8 +107,8 @@ function renderRail() {
   const scheme = ensureActive();
   const name = archive.profile.name?.trim();
   document.getElementById("rail-person").innerHTML = name
-    ? `<b>${escapeHtml(name)}</b>${escapeHtml(archive.profile.title || archive.profile.company || "人物料各场合共用")}`
-    : `<b>还没写名字</b>先填右边第五步，各场合共用`;
+    ? `<b>${escapeHtml(name)}</b>${escapeHtml(archive.profile.title || archive.profile.company || "点这里改人物料")}`
+    : `<b>还没写名字</b>点这里去第五步改档案`;
 
   document.getElementById("rail-list").innerHTML = archive.schemes
     .map((s) => {
@@ -110,10 +117,13 @@ function renderRail() {
         month: "numeric",
         day: "numeric",
       });
-      return `<button class="rail-item${s.id === scheme.id ? " is-on" : ""}" type="button" data-scheme="${s.id}">
-          ${escapeHtml(schemeTitle(s))}
-          <small>${n}/4 问 · ${when}${s.styleSpec ? " · 已出视觉" : ""}</small>
-        </button>`;
+      return `<div class="rail-item${s.id === scheme.id ? " is-on" : ""}">
+          <button type="button" data-scheme="${s.id}">
+            ${escapeHtml(schemeTitle(s))}
+            <small>${n}/4 问 · ${when}${s.styleSpec ? " · 已出视觉" : ""}</small>
+          </button>
+          <button class="rail-del" type="button" data-del="${s.id}" aria-label="删掉这场相遇">×</button>
+        </div>`;
     })
     .join("");
 }
@@ -128,9 +138,19 @@ function renderPick(strategy) {
       ? `当前用「${scheme.styleSpec.name}」。文案由这场相遇的设计稿决定。`
       : "点一版采纳。";
   } else {
-    goNote.textContent = "答完上面四问，点右上角「生成这份身份」。没有 key 也会出规则草稿和三套内置视觉。";
+    goNote.textContent = "答完上面四问，点「生成这份身份」。没有 key 也会出规则草稿和三套内置视觉。";
   }
   goNote.classList.toggle("is-error", note.error);
+
+  const draw = document.getElementById("palette-draw");
+  if (scheme.paletteDraw?.length) {
+    const labels = scheme.paletteDraw
+      .map((id) => PALETTE_FAMILIES.find((f) => f.id === id)?.label || id)
+      .join(" · ");
+    draw.textContent = `本轮抽中色系：${labels}`;
+  } else {
+    draw.textContent = "";
+  }
 
   document.getElementById("candidates").innerHTML = scheme.candidates
     .map((spec, i) => {
@@ -147,16 +167,28 @@ function renderPick(strategy) {
     })
     .join("");
 
-  const brief = strategy.brief;
-  const rows = briefRows(brief)
-    .map(
-      ([k, v, why]) =>
-        `<div class="sheet-row"><b>${k}</b><span>${escapeHtml(v)}${why ? `<em>${escapeHtml(why)}</em>` : ""}</span></div>`,
-    )
-    .join("");
-  document.getElementById("brief-sheet").innerHTML = scheme.brief
-    ? `<div class="sheet-read">${escapeHtml(brief.read)}<span>立场 ${escapeHtml(strategy.stance.label)}</span></div>${rows}`
-    : "";
+  const reviewRoot = document.getElementById("review");
+  if (scheme.brief || scheme.candidates.length) {
+    const nodes = briefNodes(strategy.brief, strategy.stance.label);
+    const checked = nodes.filter((n) => scheme.review?.[n.id]).length;
+    reviewRoot.innerHTML =
+      `<div class="q-kicker">核对清单</div>` +
+      `<p class="hint">设计稿拆成节点，一项一项看过再打勾。已核 ${checked}/${nodes.length}。</p>` +
+      nodes
+        .map((n) => {
+          const on = scheme.review?.[n.id] ? " is-on" : "";
+          const mark = scheme.review?.[n.id] ? "checked" : "";
+          return `<label class="review-item${on}">
+            <input type="checkbox" data-review="${n.id}" ${mark} />
+            <span><b>${escapeHtml(n.title)}</b>${escapeHtml(n.value)}${
+              n.why ? `<em>${escapeHtml(n.why)}</em>` : ""
+            }</span>
+          </label>`;
+        })
+        .join("");
+  } else {
+    reviewRoot.innerHTML = "";
+  }
 
   document.getElementById("cards").innerHTML = cardPair(strategy, archive.profile);
 
@@ -211,6 +243,7 @@ async function generate() {
   const ctx = briefContext(composeState);
   try {
     scheme.brief = await requestBrief(ctx);
+    scheme.review = {};
     note = { text: "设计稿已出，接着出三版视觉…", error: false };
     persist();
     render({ skipInputs: true });
@@ -221,16 +254,27 @@ async function generate() {
 
   const identity = compose(toComposeState(archive, scheme));
   try {
-    const specs = await requestStyles(identity.brief, briefContext(toComposeState(archive, scheme)), "");
+    const drawn = pickPaletteFamilies(3);
+    scheme.paletteDraw = drawn.map((f) => f.id);
+    const specs = await requestStyles(
+      identity.brief,
+      briefContext(toComposeState(archive, scheme)),
+      scheme.paletteDraw,
+    );
     scheme.candidates = specs;
     scheme.styleSpec = specs[0] || null;
+    scheme.review = {};
     note = {
-      text: note.error ? `${note.text} 视觉已出，点一版采纳。` : "三版已出，点一版采纳。也可以直接下载当前这版。",
+      text: note.error
+        ? `${note.text} 视觉已出。本轮色系 ${drawn.map((f) => f.label).join("、")}。`
+        : `三版已出（${drawn.map((f) => f.label).join("、")}）。点一版采纳，再把下面的核对清单一项项打勾。`,
       error: note.error,
     };
   } catch (err) {
     scheme.candidates = fallbackTrio();
     scheme.styleSpec = scheme.candidates[0];
+    scheme.paletteDraw = [];
+    scheme.review = {};
     note = {
       text: `${err.message || "视觉出不来"}，改用三套内置预设。点一版即可导出。`,
       error: true,
@@ -244,20 +288,11 @@ async function generate() {
   document.getElementById("pick").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function mountExportFrame(face) {
-  const strategy = composeNow();
-  const stage = document.getElementById("export-stage");
-  stage.innerHTML = `<div class="card-frame">${cardMarkup(strategy, archive.profile, face)}</div>`;
-  const frame = stage.querySelector(".card-frame");
-  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  return frame;
-}
-
 async function exportPng(face) {
   const scheme = ensureActive();
   if (!scheme.styleSpec) return;
   try {
-    const blob = await frameToPngBlob(await mountExportFrame(face));
+    const blob = await withExportFrame(cardMarkup(composeNow(), archive.profile, face), frameToPngBlob);
     downloadBlob(blob, `${fileStem(archive.profile)}-${face === "front" ? "front" : "back"}.png`);
   } catch (err) {
     note = { text: err.message || "PNG 导出失败", error: true };
@@ -269,8 +304,9 @@ async function exportPdf() {
   const scheme = ensureActive();
   if (!scheme.styleSpec) return;
   try {
-    const front = await frameToJpegBytes(await mountExportFrame("front"));
-    const back = await frameToJpegBytes(await mountExportFrame("back"));
+    const strategy = composeNow();
+    const front = await withExportFrame(cardMarkup(strategy, archive.profile, "front"), frameToJpegBytes);
+    const back = await withExportFrame(cardMarkup(strategy, archive.profile, "back"), frameToJpegBytes);
     const blob = pdfFromJpegs([
       { jpeg: front, width: PNG_W, height: PNG_H },
       { jpeg: back, width: PNG_W, height: PNG_H },
@@ -315,13 +351,43 @@ function bind() {
     render();
     document.getElementById("q-scene").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+  document.getElementById("rail-person").addEventListener("click", () => {
+    document.getElementById("q-profile").scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("f-name").focus();
+  });
   document.getElementById("rail-list").addEventListener("click", (event) => {
+    const del = event.target.closest("[data-del]");
+    if (del) {
+      event.stopPropagation();
+      const id = del.dataset.del;
+      archive.schemes = archive.schemes.filter((s) => s.id !== id);
+      if (!archive.schemes.length) {
+        const s = newScheme();
+        archive.schemes.push(s);
+        archive.activeId = s.id;
+      } else if (archive.activeId === id) {
+        archive.activeId = archive.schemes[0].id;
+      }
+      persist();
+      note = { text: "", error: false };
+      render();
+      return;
+    }
     const btn = event.target.closest("[data-scheme]");
     if (!btn) return;
     archive.activeId = btn.dataset.scheme;
     persist();
     note = { text: "", error: false };
     render();
+  });
+  document.getElementById("review").addEventListener("change", (event) => {
+    const box = event.target.closest("[data-review]");
+    if (!box) return;
+    const scheme = ensureActive();
+    scheme.review = { ...(scheme.review || {}), [box.dataset.review]: box.checked };
+    scheme.updatedAt = Date.now();
+    persist();
+    render({ skipInputs: true });
   });
   document.getElementById("candidates").addEventListener("click", (event) => {
     const btn = event.target.closest("[data-cand]");

@@ -6,6 +6,7 @@ import { buildPrompts } from "./prompts.js";
 import { sanitizeSpec } from "./style-spec.js";
 import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
+import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
 
 const KEY = "identity.atelier.v1";
 const FIELDS = [
@@ -352,6 +353,13 @@ function render(opts = {}) {
   document.getElementById("prompt-zh").textContent = prompts.zh;
   document.getElementById("prompt-en").textContent = prompts.en;
 
+  const pngOk = Boolean(strategy.completeness.named);
+  const vcfOk = Boolean(strategy.completeness.named && strategy.completeness.contact);
+  document.getElementById("btn-png-front").disabled = !pngOk;
+  document.getElementById("btn-png-back").disabled = !pngOk;
+  document.getElementById("btn-pdf").disabled = !pngOk;
+  document.getElementById("btn-vcf").disabled = !vcfOk;
+
   const hasPortrait = Boolean(state.profile.portrait);
   const hasFile = Boolean(state.profile.attachmentName);
   const pChip = document.getElementById("portrait-chip");
@@ -399,6 +407,48 @@ async function runDesigner() {
     designing = false;
     render({ skipInputs: true });
   }
+}
+
+async function exportPng(face) {
+  if (!state.profile.name?.trim()) return;
+  try {
+    const blob = await withExportFrame(cardMarkup(compose(state), state.profile, face), frameToPngBlob);
+    downloadBlob(blob, `${fileStem(state.profile)}-${face === "front" ? "front" : "back"}.png`);
+  } catch (err) {
+    designNote = { text: err.message || "PNG 导出失败", error: true };
+    render({ skipInputs: true });
+  }
+}
+
+async function exportPdf() {
+  if (!state.profile.name?.trim()) return;
+  try {
+    const strategy = compose(state);
+    const front = await withExportFrame(cardMarkup(strategy, state.profile, "front"), frameToJpegBytes);
+    const back = await withExportFrame(cardMarkup(strategy, state.profile, "back"), frameToJpegBytes);
+    downloadBlob(
+      pdfFromJpegs([
+        { jpeg: front, width: PNG_W, height: PNG_H },
+        { jpeg: back, width: PNG_W, height: PNG_H },
+      ]),
+      `${fileStem(state.profile)}.pdf`,
+    );
+  } catch (err) {
+    designNote = { text: err.message || "PDF 导出失败", error: true };
+    render({ skipInputs: true });
+  }
+}
+
+function exportVcf() {
+  const strategy = compose(state);
+  downloadText(
+    buildVCard(state.profile, {
+      showOrg: strategy.companyMode === "show",
+      pitch: strategy.brief.back.pitch,
+    }),
+    `${fileStem(state.profile)}.vcf`,
+    "text/vcard;charset=utf-8",
+  );
 }
 
 function bind() {
@@ -516,6 +566,10 @@ function bind() {
     render();
   });
   document.getElementById("btn-print").addEventListener("click", () => window.print());
+  document.getElementById("btn-png-front").addEventListener("click", () => exportPng("front"));
+  document.getElementById("btn-png-back").addEventListener("click", () => exportPng("back"));
+  document.getElementById("btn-pdf").addEventListener("click", exportPdf);
+  document.getElementById("btn-vcf").addEventListener("click", exportVcf);
 
   document.querySelectorAll("[data-copy]").forEach((btn) => {
     btn.addEventListener("click", async () => {

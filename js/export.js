@@ -86,6 +86,16 @@ export async function frameToJpegBytes(el) {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+/** 把卡按印刷尺寸挂到屏外画板，再交给 PNG / JPEG 编码器。 */
+export async function withExportFrame(innerHtml, fn) {
+  const stage = document.getElementById("export-stage");
+  if (!stage) throw new Error("没有导出画板");
+  stage.innerHTML = `<div class="card-frame">${innerHtml}</div>`;
+  const frame = stage.querySelector(".card-frame");
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return fn(frame);
+}
+
 function concatBytes(parts) {
   const total = parts.reduce((n, p) => n + p.length, 0);
   const out = new Uint8Array(total);

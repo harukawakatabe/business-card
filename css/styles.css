@@ -884,6 +884,28 @@ a.btn {
   color: var(--ink-soft);
 }
 
+.export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+#export-stage {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1063px;
+  pointer-events: none;
+}
+
+#export-stage .card-frame {
+  width: 1063px;
+  height: 638px;
+  aspect-ratio: auto;
+  filter: none;
+}
+
 #print-sheet {
   display: none;
 }

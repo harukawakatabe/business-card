@@ -68,6 +68,16 @@ export const PALETTE_FAMILIES = [
   { id: "straw", label: "麦秆", blurb: "麦色纸，深褐字", swatches: ["#f4edd8", "#e4d6b0", "#2c2416", "#c4a35a"] },
 ];
 
+/** 从色系库里不放回抽取 n 套，给产品版每次换三色。 */
+export function pickPaletteFamilies(n = 3) {
+  const copy = PALETTE_FAMILIES.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, Math.min(n, copy.length));
+}
+
 export const AUDIENCES = [
   {
     id: "recruiter",

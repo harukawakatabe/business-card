@@ -1,6 +1,6 @@
 /**
  * 身份档案：一份人物料 + 多份「这场相遇」方案。
- * 只给产品版 flow.html 用。工作室 index.html 继续走自己的 localStorage。
+ * 只给产品版首页用。工作室 studio.html 继续走自己的 localStorage。
  */
 
 import { AUDIENCES, EMPTY_PROFILE, PURPOSES, SCENES, STAGES } from "./data.js";
@@ -29,6 +29,8 @@ export function newScheme(over = {}) {
     brief: null,
     styleSpec: null,
     candidates: [],
+    review: {},
+    paletteDraw: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
     ...over,
@@ -86,6 +88,8 @@ export function loadArchive() {
           candidates: Array.isArray(s.candidates)
             ? s.candidates.map((c, i) => sanitizeSpec(c, c?.id || `saved-${i}`))
             : [],
+          review: s.review && typeof s.review === "object" ? s.review : {},
+          paletteDraw: Array.isArray(s.paletteDraw) ? s.paletteDraw : [],
         }))
       : [];
     const activeId = schemes.some((s) => s.id === parsed.activeId) ? parsed.activeId : schemes[0]?.id || "";

@@ -352,7 +352,11 @@ function paletteCatalog() {
 function styleMessage(brief, ctx, paletteHint) {
   const { scene, purpose, audience, stage, profile } = ctx;
   const name = profile.name?.trim();
-  const picked = PALETTE_FAMILIES.find((f) => f.id === paletteHint);
+  const hints = Array.isArray(paletteHint)
+    ? paletteHint.map((id) => PALETTE_FAMILIES.find((f) => f.id === id)).filter(Boolean)
+    : paletteHint
+      ? [PALETTE_FAMILIES.find((f) => f.id === paletteHint)].filter(Boolean)
+      : [];
   const lines = [
     "【设计稿】",
     `- 这次相遇：${brief.read || "（未写）"}`,
@@ -369,13 +373,19 @@ function styleMessage(brief, ctx, paletteHint) {
     }`,
     "",
     "【色系】",
-    "工作室网页是雪松绿，名片不受此限。下面是可选模板，不是封闭名单。",
+    "工作室网页是雪松绿，名片不受此限。下面是完整色系库，不是封闭名单。",
     paletteCatalog(),
   ];
-  if (picked) {
+  if (hints.length === 1) {
+    const picked = hints[0];
     lines.push(
       `用户指定了色系「${picked.label}」：三版都落在这个色相里，靠构图和明度分家，不要飘到别的色相。样例 ${picked.swatches.join(" / ")}。`,
     );
+  } else if (hints.length >= 2) {
+    lines.push("这一次从色系库里抽了三套。三个方案必须分别落在这三套里：方案一用第一套，方案二用第二套，方案三用第三套。不要换成库外的色，也不要三张走同一套。");
+    hints.forEach((f, i) => {
+      lines.push(`${i + 1}. ${f.label}（${f.id}）：${f.blurb}　样例 ${f.swatches.join(" / ")}`);
+    });
   } else {
     lines.push("用户没有指定色系：三个方案必须走三个不同的色相家族，禁止三张都是绿、都是黑、或只改明度。");
   }
@@ -432,7 +442,7 @@ export async function requestBrief(ctx) {
   return sanitizeBrief(input, ctx, `brief-${Date.now()}`);
 }
 
-/** 第二段：按设计稿出三版视觉。paletteHint 是可选色系模板 id，空则三版必须换色相。 */
+/** 第二段：按设计稿出三版视觉。paletteHint 可以是一个色系 id、一组 id，或空。 */
 export async function requestStyles(brief, ctx, paletteHint = "") {
   const input = await callDesigner({
     system: STYLE_SYSTEM,

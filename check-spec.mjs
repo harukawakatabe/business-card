@@ -405,6 +405,16 @@ for (const [i, g] of garbage.entries()) {
   }
   if (!pdf.includes("/Filter /DCTDecode")) bad("PDF 未嵌入 JPEG");
   if (!pdf.trimEnd().endsWith("%%EOF")) bad("PDF 缺文件尾");
+
+  const { pickPaletteFamilies } = await import("./js/data.js");
+  const { briefNodes } = await import("./js/brief.js");
+  const drawn = pickPaletteFamilies(3);
+  if (drawn.length !== 3) bad(`应抽出 3 套色系，实际 ${drawn.length}`);
+  if (new Set(drawn.map((f) => f.id)).size !== 3) bad("抽出的三套色系应互不相同");
+  if (pickPaletteFamilies(18).length !== 18) bad("抽满应覆盖全部 18 套");
+  const nodes = briefNodes(compose(base).brief, "专业可信");
+  if (nodes.length < 6) bad(`核对清单节点太少: ${nodes.length}`);
+  if (!nodes.every((n) => n.id && n.title)) bad("核对清单节点缺 id 或标题");
 }
 
 console.log(fail ? `\n${fail} 处问题` : "\n全部通过");
