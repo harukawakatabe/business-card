@@ -18,7 +18,7 @@ import { PRESETS, sanitizeSpec } from "./style-spec.js";
 import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { loadArchive, newScheme, questionsFilled, saveArchive, schemeTitle, toComposeState } from "./archive.js";
-import { buildVCard, downloadBlob, downloadText, fileStem, frameToPngBlob } from "./export.js";
+import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W } from "./export.js";
 
 const FIELDS = [
   ["scene", SCENES],
@@ -165,6 +165,7 @@ function renderPick(strategy) {
   const vcfOk = c.named && c.contact;
   document.getElementById("btn-png-front").disabled = !pngOk;
   document.getElementById("btn-png-back").disabled = !pngOk;
+  document.getElementById("btn-pdf").disabled = !pngOk;
   document.getElementById("btn-vcf").disabled = !vcfOk;
 }
 
@@ -243,19 +244,40 @@ async function generate() {
   document.getElementById("pick").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function exportPng(face) {
-  const scheme = ensureActive();
-  if (!scheme.styleSpec) return;
+async function mountExportFrame(face) {
   const strategy = composeNow();
   const stage = document.getElementById("export-stage");
   stage.innerHTML = `<div class="card-frame">${cardMarkup(strategy, archive.profile, face)}</div>`;
   const frame = stage.querySelector(".card-frame");
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return frame;
+}
+
+async function exportPng(face) {
+  const scheme = ensureActive();
+  if (!scheme.styleSpec) return;
   try {
-    const blob = await frameToPngBlob(frame);
+    const blob = await frameToPngBlob(await mountExportFrame(face));
     downloadBlob(blob, `${fileStem(archive.profile)}-${face === "front" ? "front" : "back"}.png`);
   } catch (err) {
     note = { text: err.message || "PNG 导出失败", error: true };
+    render({ skipInputs: true });
+  }
+}
+
+async function exportPdf() {
+  const scheme = ensureActive();
+  if (!scheme.styleSpec) return;
+  try {
+    const front = await frameToJpegBytes(await mountExportFrame("front"));
+    const back = await frameToJpegBytes(await mountExportFrame("back"));
+    const blob = pdfFromJpegs([
+      { jpeg: front, width: PNG_W, height: PNG_H },
+      { jpeg: back, width: PNG_W, height: PNG_H },
+    ]);
+    downloadBlob(blob, `${fileStem(archive.profile)}.pdf`);
+  } catch (err) {
+    note = { text: err.message || "PDF 导出失败", error: true };
     render({ skipInputs: true });
   }
 }
@@ -319,6 +341,7 @@ function bind() {
   }
   document.getElementById("btn-png-front").addEventListener("click", () => exportPng("front"));
   document.getElementById("btn-png-back").addEventListener("click", () => exportPng("back"));
+  document.getElementById("btn-pdf").addEventListener("click", exportPdf);
   document.getElementById("btn-vcf").addEventListener("click", exportVcf);
 }
 

@@ -18,7 +18,7 @@ python3 server.py
 ## 两页
 
 - **工作室** `index.html`：实用向。两段手动走（设计稿 → 出三版视觉）、立场覆盖、色系模板、手改文案、打印、生图提示词。草稿在 `identity.atelier.v1`。
-- **产品版** `flow.html`：傻瓜主路径。一份人物料 + 多场相遇；答完四问一键出设计稿和三版视觉，导出正面/背面 PNG（90×54mm @300dpi）和 vCard。档案在 `identity.flow.v1`。两页互链，互不覆盖。
+- **产品版** `flow.html`：傻瓜主路径。一份人物料 + 多场相遇；答完四问一键出设计稿和三版视觉，导出正面/背面 PNG、双面 PDF（90×54mm @300dpi）和 vCard。档案在 `identity.flow.v1`。两页互链，互不覆盖。
 
 ## 工作流：两段链路
 
@@ -32,7 +32,7 @@ python3 server.py
 
 ```
 index.html          工作室：问询 + 预览 + 打印 + 生图提示词
-flow.html           产品版：档案 + 一键生成 + PNG / vCard
+flow.html           产品版：档案 + 一键生成 + PNG / PDF / vCard
 css/styles.css      界面样式 + 完全变量驱动的名片渲染
 css/flow.css        产品版布局（档案栏 + 主路径）
 js/data.js          对象 / 场合 / 目的 / 阶段 / 立场 词表
@@ -45,10 +45,10 @@ js/llm.js           两段客户端：requestBrief → requestStyles
 js/prompts.js       中英生图提示词（吃设计稿的必印文字 + 规格 + promptNote）
 js/app.js           工作室交互、localStorage、打印
 js/archive.js       产品版档案：一份人物料 + 多场相遇
-js/export.js        PNG（计算样式内联 → canvas）+ vCard
+js/export.js        PNG / 双面 PDF（计算样式内联 → canvas）+ vCard
 js/flow.js          产品版交互
 server.py           静态服务 + /api/design 代理（多家上游回落）
-check-spec.mjs      两份契约守卫 + 档案 / vCard（node check-spec.mjs）
+check-spec.mjs      两份契约守卫 + 档案 / vCard / PDF（node check-spec.mjs）
 ```
 
 ## 样式架构：一切都从设计规格来

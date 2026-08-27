@@ -354,8 +354,10 @@ for (const [i, g] of garbage.entries()) {
 // 7. 产品版：档案标题、vCard、90×54mm @300dpi
 {
   const { blankArchive, newScheme, questionsFilled, schemeTitle, toComposeState } = await import("./js/archive.js");
-  const { buildVCard, PNG_W, PNG_H } = await import("./js/export.js");
+  const { buildVCard, PNG_W, PNG_H, PDF_PT_W, PDF_PT_H, pdfFromJpegs } = await import("./js/export.js");
   if (PNG_W !== 1063 || PNG_H !== 638) bad(`PNG 尺寸应为 1063×638，实际 ${PNG_W}×${PNG_H}`);
+  if (Math.abs(PDF_PT_W - (90 / 25.4) * 72) > 0.01) bad(`PDF 页宽不是 90mm: ${PDF_PT_W}`);
+  if (Math.abs(PDF_PT_H - (54 / 25.4) * 72) > 0.01) bad(`PDF 页高不是 54mm: ${PDF_PT_H}`);
 
   const empty = newScheme();
   if (questionsFilled(empty) !== 0) bad("空方案问询数应为 0");
@@ -387,6 +389,22 @@ for (const [i, g] of garbage.entries()) {
   const nasty = buildVCard({ ...EMPTY_PROFILE, name: "测;试", company: "A,B", wechat: "x\\y" }, { showOrg: true });
   if (nasty.includes("FN:测;试") && !nasty.includes("FN:测\\;试")) bad("vCard 分号未转义");
   if (!nasty.includes("FN:测\\;试")) bad("vCard 分号转义形式不对");
+
+  const jpeg = Uint8Array.from(Buffer.from(
+    "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAAAAME/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAAPwCdA8f/2Q==",
+    "base64",
+  ));
+  const pdf = Buffer.from(await pdfFromJpegs([
+    { jpeg, width: 1, height: 1 },
+    { jpeg, width: 1, height: 1 },
+  ]).arrayBuffer()).toString("latin1");
+  if (!pdf.startsWith("%PDF-1.4")) bad("PDF 缺文件头");
+  if (!pdf.includes("/Count 2")) bad("PDF 应有两页");
+  if (!pdf.includes(`/MediaBox [0 0 ${PDF_PT_W.toFixed(4)} ${PDF_PT_H.toFixed(4)}]`)) {
+    bad("PDF 页面尺寸不是 90×54mm");
+  }
+  if (!pdf.includes("/Filter /DCTDecode")) bad("PDF 未嵌入 JPEG");
+  if (!pdf.trimEnd().endsWith("%%EOF")) bad("PDF 缺文件尾");
 }
 
 console.log(fail ? `\n${fail} 处问题` : "\n全部通过");
