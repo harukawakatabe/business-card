@@ -43,6 +43,31 @@ export const STANCES = {
   },
 };
 
+/**
+ * 名片色系模板：给第二步的视觉设计师当灵感，不是封闭名单。
+ * 雪松绿只是 Web 界面的色谱，不锁名片。用户不选 = 三版必须换色相。
+ */
+export const PALETTE_FAMILIES = [
+  { id: "ink-gold", label: "墨金", blurb: "近黑底，氧化金点缀", swatches: ["#100e0c", "#2a241c", "#f4ead7", "#c4a574"] },
+  { id: "bone-teal", label: "骨白青", blurb: "本白纸，一条克制的青灰", swatches: ["#f7f2e8", "#ebe3d4", "#1b2428", "#2f5d62"] },
+  { id: "navy-ember", label: "夜橙", blurb: "深海军底，硬橙推进", swatches: ["#0a0d12", "#141821", "#f6f5f1", "#e85d04"] },
+  { id: "cream-clay", label: "陶土", blurb: "暖米色，陶土红", swatches: ["#f6eee3", "#e8d8c8", "#3b2a1f", "#a65d3f"] },
+  { id: "snow-ink", label: "雪墨", blurb: "纯白与近黑，几乎无彩", swatches: ["#fbfbfb", "#e8e8e8", "#111111", "#6a6a6a"] },
+  { id: "linen-violet", label: "亚麻紫", blurb: "亚麻底，一块大胆的紫", swatches: ["#ece6d8", "#ddd4c4", "#161616", "#5b2d8e"] },
+  { id: "cinnabar", label: "朱砂", blurb: "纸白配朱红印记", swatches: ["#f7f4ef", "#ebe4d8", "#1a1410", "#b42318"] },
+  { id: "ocean", label: "海纹", blurb: "冷灰蓝，像一份航运文件", swatches: ["#eef2f5", "#d7e0e8", "#14202b", "#2b6cb0"] },
+  { id: "cedar", label: "松墨", blurb: "冷绿白与墨绿，可选不是默认", swatches: ["#eef2ee", "#dce6de", "#101c15", "#1f4a35"] },
+  { id: "celadon", label: "青瓷", blurb: "粉青釉面，深青绿字", swatches: ["#e7f0ea", "#c5d8ce", "#1a3a32", "#3d8b7a"] },
+  { id: "indigo", label: "黛蓝", blurb: "夜蓝底，银白字", swatches: ["#12182a", "#1c2744", "#e8ecf4", "#6b7fd7"] },
+  { id: "rosewood", label: "玫瑰木", blurb: "脂粉纸，深酒红", swatches: ["#f4ebe8", "#e4d0cc", "#3a2428", "#8b3a4a"] },
+  { id: "graphite", label: "石墨", blurb: "冷灰纸，工程图感", swatches: ["#eceeef", "#d4d8dc", "#1c1f22", "#5a6570"] },
+  { id: "amber", label: "琥珀", blurb: "蜜色底或深褐底，金黄强调", swatches: ["#1a140c", "#3a2c18", "#f3e6c8", "#d4a017"] },
+  { id: "ivory-wine", label: "象牙酒红", blurb: "牙白纸，酒红印", swatches: ["#f6f1e6", "#e8dcc8", "#2a181c", "#7a2039"] },
+  { id: "night-silver", label: "玄银", blurb: "近黑蓝底，冷银字", swatches: ["#0c1016", "#1a2230", "#dce3ea", "#8a9bb0"] },
+  { id: "brick", label: "青砖", blurb: "土纸底，砖红脊", swatches: ["#f2ece6", "#ddd2c6", "#2b211c", "#9a4a32"] },
+  { id: "straw", label: "麦秆", blurb: "麦色纸，深褐字", swatches: ["#f4edd8", "#e4d6b0", "#2c2416", "#c4a35a"] },
+];
+
 export const AUDIENCES = [
   {
     id: "recruiter",
@@ -236,71 +261,50 @@ export const STAGES = [
   },
 ];
 
-export const QUESTIONS = [
-  {
-    id: "audience",
-    n: "01",
-    title: "这份身份要递给谁",
-    lead: "对方是谁，决定你该被看成谁。名片不是自我介绍，是给对方的一个抓手。",
-  },
-  {
-    id: "scene",
-    n: "02",
-    title: "在什么场合递出去",
-    lead: "大会上的三秒扫视，和饭桌上隔着酒杯递过去，不是同一张卡。",
-  },
-  {
-    id: "purpose",
-    n: "03",
-    title: "你希望相遇之后发生什么",
-    lead: "求职、谈成一单、留下一个微信——目的不同，卡上该出现的字就不同。",
-  },
-  {
-    id: "stage",
-    n: "04",
-    title: "你现在处于哪一段",
-    lead: "在职悄悄看机会，和已经公开求职，能印上去的东西不一样。",
-  },
-  {
-    id: "profile",
-    n: "05",
-    title: "你是谁（可空）",
-    lead: "材料是原料，不是名片本身。空着也能先出策略；有名字，卡才能真正递得出去。",
-  },
-];
-
 export const DEMO = {
-  audience: "client",
   scene: "visit",
   purpose: "deal",
+  audience: "client",
   stage: "employed",
   profile: {
     name: "陈予安",
     nameEn: "Yuan Chen",
     title: "商务负责人",
     company: "北境咨询",
+    trade: "企业服务 / 组织咨询",
+    age: "38",
+    years: "14",
     pitch: "",
     phone: "138 0013 8000",
     wechat: "chenyuan_biz",
     email: "yuan.chen@example.com",
     website: "bejing.example",
     city: "上海",
+    tags: "组织诊断, 增长策略",
     portrait: "",
     attachmentName: "",
   },
 };
 
+/** 资历三项（trade / age / years）只喂设计师判断分寸，不上卡。 */
 export const EMPTY_PROFILE = {
   name: "",
   nameEn: "",
   title: "",
   company: "",
+  trade: "",
+  age: "",
+  years: "",
   pitch: "",
   phone: "",
   wechat: "",
   email: "",
   website: "",
   city: "",
+  tags: "",
   portrait: "",
   attachmentName: "",
 };
+
+export const CONTACT_KEYS = ["wechat", "phone", "email", "website"];
+export const CONTACT_LABELS = { wechat: "微信", phone: "电话", email: "邮箱", website: "站点" };
