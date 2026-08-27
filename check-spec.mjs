@@ -64,6 +64,16 @@ function auditSpec(label, spec) {
   if (pad.t + pad.b > 40) bad(`${label} 上下留白合计 ${pad.t + pad.b}%`);
 }
 
+function auditPrintFit(label, design) {
+  for (const c of design.contacts) {
+    if (/\.\.\.|…/.test(c.value)) bad(`${label} 底栏含省略号: ${c.value}`);
+  }
+  const { overflow } = fitPrintedContacts(design.contacts, design.spec);
+  if (overflow.length) {
+    bad(`${label} 已排底栏仍溢出: ${overflow.map((c) => c.value).join(" / ")}`);
+  }
+}
+
 const PLEA = /求职|找工作|找下家|求贤|待业|失业|寻求机会|谋职|求推荐|求内推|招聘我/;
 
 /** 设计稿的铁律：不编联系方式、该藏的组织藏住、卡面不写请愿句、条目不超版。 */
@@ -119,6 +129,7 @@ for (const stance of ["", ...Object.keys(PRESETS)]) {
   const strategy = compose(state);
   auditSpec(`compose:${stance || "auto"}`, strategy.design.spec);
   auditBrief(`compose:${stance || "auto"}`, strategy.brief, briefContext(state));
+  auditPrintFit(`compose:${stance || "auto"}`, strategy.design);
   const p = buildPrompts(state, strategy);
   for (const [k, v] of Object.entries(p)) {
     if (!v.length) bad(`compose:${stance} 提示词 ${k} 为空`);
@@ -413,6 +424,34 @@ for (const [i, g] of garbage.entries()) {
   if (drawn.length !== 3) bad(`应抽出 3 套色系，实际 ${drawn.length}`);
   if (new Set(drawn.map((f) => f.id)).size !== 3) bad("抽出的三套色系应互不相同");
   if (pickPaletteFamilies(18).length !== 18) bad("抽满应覆盖全部 18 套");
+
+  const cardCss = readFileSync(new URL("./css/styles.css", import.meta.url), "utf8");
+  if (/text-overflow:\s*ellipsis/.test(cardCss)) bad("名片 CSS 不许用省略号截断文字");
+
+  const four = [
+    { key: "phone", label: "电话", value: "138 0013 8000" },
+    { key: "wechat", label: "微信", value: "chenyuan_biz" },
+    { key: "email", label: "邮箱", value: "yuan.chen@example.com" },
+    { key: "website", label: "站点", value: "bejing.example" },
+  ];
+  const squeezed = sanitizeSpec(
+    { ...PRESETS.creative, copy: { maxUnder: 2, maxContacts: 4, contactStyle: "bare" } },
+    "squeezed",
+  );
+  const fitted = fitPrintedContacts(four, squeezed);
+  if (fitted.kept.length + fitted.overflow.length !== 4) bad("fitPrintedContacts 应保住全部条目");
+  if (!fitted.overflow.length) bad("窄版面四条联系应溢出，不能靠省略号硬塞");
+  const used =
+    fitted.kept.reduce((sum, c) => sum + lineWidthCqw(c.value, squeezed.type.contactSize), 0) +
+    Math.max(0, fitted.kept.length - 1) * 1.6;
+  if (used - faceWidthCqw(squeezed) > 0.05) bad(`fit 后底栏仍超宽 ${used.toFixed(1)} / ${faceWidthCqw(squeezed).toFixed(1)}`);
+
+  const identity = compose(base);
+  const crowded = designCard(identity, { ...base, styleSpec: squeezed }, squeezed);
+  if (crowded.contacts.length > fitted.kept.length + 1) {
+    bad(`designCard 窄版面仍排了 ${crowded.contacts.length} 条联系`);
+  }
+  auditPrintFit("design:squeezed", crowded);
 }
 
 console.log(fail ? `\n${fail} 处问题` : "\n全部通过");

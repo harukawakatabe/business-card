@@ -585,6 +585,8 @@ a.btn {
   border-radius: var(--card-radius, 0);
   overflow: hidden;
   color: var(--card-fg, #1b2428);
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 .card::after {

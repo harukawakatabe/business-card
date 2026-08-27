@@ -64,6 +64,20 @@ export function fitPrintedContacts(contacts, spec) {
   return { kept, overflow };
 }
 
+/** 姓名下一行按版宽裁切，避免「商务负责人…」这种印不出去的省略。 */
+export function fitPrintedLine(labels, sizeCqw, trackEm, spec, joiner = "  ·  ") {
+  const list = Array.isArray(labels) ? labels : [];
+  const usable = faceWidthCqw(spec);
+  const kept = [];
+  for (const label of list) {
+    const trial = [...kept, label].join(joiner);
+    if (lineWidthCqw(trial, sizeCqw, trackEm) <= usable) kept.push(label);
+    else break;
+  }
+  if (!kept.length && list.length) kept.push(list[0]);
+  return { kept, overflow: list.slice(kept.length) };
+}
+
 /** 场合的信息密度会覆盖规格里的条目上限：饭桌上字多等于没人看。 */
 function densityCap(spec, scene) {
   const d = scene?.density ?? 0.55;
@@ -105,14 +119,20 @@ export function designCard(identity, state, override) {
   const underAll = brief.under.map((u) => u.label);
   const editedRole = (edits.role ?? "").trim();
   if (editedRole) underAll[0] = editedRole;
-  const under = underAll.slice(0, spec.copy.maxUnder).map((label) => ({ label }));
+  const fittedUnder = fitPrintedLine(
+    underAll.slice(0, spec.copy.maxUnder),
+    spec.type.roleSize,
+    spec.type.roleTrack,
+    spec,
+  );
+  const under = fittedUnder.kept.map((label) => ({ label }));
   const fitted = fitPrintedContacts(brief.contacts, spec);
   const contacts = fitted.kept;
 
   // 设计稿主动拿掉的，加上被这套版面挤掉的，一起对用户交代。
   const omitted = [...brief.omitted];
-  for (const label of underAll.slice(spec.copy.maxUnder)) {
-    omitted.push({ label, reason: "这套版面的姓名下只放得下前几条" });
+  for (const label of [...underAll.slice(spec.copy.maxUnder), ...fittedUnder.overflow]) {
+    omitted.push({ label, reason: "这套版面的姓名下排不下，主身份优先" });
   }
   for (const c of fitted.overflow) {
     omitted.push({

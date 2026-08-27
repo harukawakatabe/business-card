@@ -146,6 +146,16 @@
   justify-items: start;
 }
 
+.go-row .craft,
+.go-row .designer-note {
+  justify-self: stretch;
+  width: 100%;
+}
+
+.go-row .designer-note {
+  text-align: center;
+}
+
 .palette-draw {
   margin: 0 0 10px;
   font-size: 12px;
