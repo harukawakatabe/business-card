@@ -21,18 +21,8 @@
 
     <main class="layout">
       <section class="inquiry">
-        <article class="q" id="q-audience">
-          <div class="q-kicker">01</div>
-          <h2>这份身份要递给谁</h2>
-          <p class="lead">对方是谁，决定你该被看成谁。名片不是自我介绍，是给对方的一个抓手。</p>
-          <div class="chips" data-field="audience"></div>
-          <div class="other" data-other="audience">
-            <input type="text" placeholder="对方是谁，用你的话说" maxlength="40" />
-          </div>
-        </article>
-
         <article class="q" id="q-scene">
-          <div class="q-kicker">02</div>
+          <div class="q-kicker">01</div>
           <h2>在什么场合递出去</h2>
           <p class="lead">大会上的三秒扫视，和饭桌上隔着酒杯递过去，不是同一张卡。</p>
           <div class="chips" data-field="scene"></div>
@@ -42,12 +32,22 @@
         </article>
 
         <article class="q" id="q-purpose">
-          <div class="q-kicker">03</div>
-          <h2>你希望相遇之后发生什么</h2>
-          <p class="lead">求职、谈成一单、留下一个微信——目的不同，卡上该出现的字就不同。</p>
+          <div class="q-kicker">02</div>
+          <h2>这张卡要用来做什么</h2>
+          <p class="lead">求职、谈成一单、留下一个微信——用途不同，卡上该出现的字就不同。</p>
           <div class="chips" data-field="purpose"></div>
           <div class="other" data-other="purpose">
-            <input type="text" placeholder="目的，用你的话说" maxlength="40" />
+            <input type="text" placeholder="用途，用你的话说" maxlength="40" />
+          </div>
+        </article>
+
+        <article class="q" id="q-audience">
+          <div class="q-kicker">03</div>
+          <h2>要递给什么人</h2>
+          <p class="lead">对方是谁，决定你该被看成谁。名片不是自我介绍，是给对方的一个抓手。</p>
+          <div class="chips" data-field="audience"></div>
+          <div class="other" data-other="audience">
+            <input type="text" placeholder="对方是谁，用你的话说" maxlength="40" />
           </div>
         </article>
 
@@ -63,8 +63,10 @@
 
         <article class="q" id="q-profile">
           <div class="q-kicker">05</div>
-          <h2>你是谁（可空）</h2>
-          <p class="lead">材料是原料，不是名片本身。空着也能先出策略；有名字，卡才能真正递得出去。</p>
+          <h2>你的资历（可空）</h2>
+          <p class="lead">
+            材料是原料，不是名片本身。行业、年龄、年限只交给设计师判断分寸，不会印上卡；空着也能先出设计稿。
+          </p>
           <div class="fields">
             <div>
               <label for="f-name">姓名</label>
@@ -81,6 +83,18 @@
             <div>
               <label for="f-company">组织 / 公司</label>
               <input id="f-company" data-profile="company" maxlength="30" />
+            </div>
+            <div class="wide">
+              <label for="f-trade">行业 / 职业（不上卡）</label>
+              <input id="f-trade" data-profile="trade" maxlength="30" placeholder="例如：企业服务 / 组织咨询" />
+            </div>
+            <div>
+              <label for="f-age">年龄（不上卡）</label>
+              <input id="f-age" data-profile="age" maxlength="3" inputmode="numeric" />
+            </div>
+            <div>
+              <label for="f-years">从业年限（不上卡）</label>
+              <input id="f-years" data-profile="years" maxlength="3" inputmode="numeric" />
             </div>
             <div>
               <label for="f-city">城市</label>
@@ -107,6 +121,10 @@
               <input id="f-pitch" data-profile="pitch" maxlength="40" />
             </div>
             <div class="wide">
+              <label for="f-tags">能力标签（可空，逗号分隔）</label>
+              <input id="f-tags" data-profile="tags" maxlength="80" placeholder="例如：组织诊断, 增长策略" />
+            </div>
+            <div class="wide">
               <label>头像 / 附件</label>
               <div class="file-row">
                 <button class="btn" type="button" id="btn-portrait">选择头像</button>
@@ -129,19 +147,50 @@
           <div class="formula" id="formula"></div>
         </div>
         <p class="status" id="status"></p>
+
+        <section class="designer">
+          <div class="designer-head">
+            <h3>第一步 · 名片设计稿</h3>
+            <div class="designer-actions">
+              <button class="btn ghost" type="button" id="btn-brief-reset" hidden>回到规则草稿</button>
+              <button class="btn chop" type="button" id="btn-brief">让顾问写设计稿</button>
+            </div>
+          </div>
+          <p class="designer-note" id="brief-note"></p>
+          <div class="sheet" id="brief-sheet"></div>
+        </section>
+
+        <section class="designer">
+          <div class="designer-head">
+            <h3>第二步 · 按设计稿做视觉</h3>
+            <div class="designer-actions">
+              <button class="btn ghost" type="button" id="btn-design-reset" hidden>回到内置预设</button>
+              <button class="btn chop" type="button" id="btn-design">出三版视觉</button>
+            </div>
+          </div>
+          <p class="designer-note" id="design-note"></p>
+          <div class="palettes" id="palettes"></div>
+          <div class="candidates" id="candidates"></div>
+        </section>
+
+        <p class="card-label" id="stance-label"></p>
         <div class="stance-row" id="stances"></div>
+        <div class="cards" id="cards"></div>
         <div class="brief" id="brief"></div>
         <div class="edits">
           <div>
-            <label for="e-headline">对外身份（可改）</label>
-            <input id="e-headline" maxlength="40" />
+            <label for="e-masthead">上排（组织）</label>
+            <input id="e-masthead" maxlength="24" />
           </div>
           <div>
-            <label for="e-pitch">对外一句（可改）</label>
+            <label for="e-role">姓名下（职能）</label>
+            <input id="e-role" maxlength="40" />
+          </div>
+          <div class="wide">
+            <label for="e-pitch">背面一句</label>
             <input id="e-pitch" maxlength="40" />
           </div>
         </div>
-        <div class="cards" id="cards"></div>
         <div class="prompts">
           <article class="prompt">
             <header>

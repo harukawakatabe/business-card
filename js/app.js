@@ -1,25 +1,34 @@
-import { AUDIENCES, DEMO, EMPTY_PROFILE, PURPOSES, SCENES, STAGES, STANCES } from "./data.js";
-import { compose } from "./strategy.js";
+import { AUDIENCES, DEMO, EMPTY_PROFILE, PALETTE_FAMILIES, PURPOSES, SCENES, STAGES, STANCES } from "./data.js";
+import { briefContext, compose } from "./strategy.js";
+import { designCard } from "./design.js";
+import { briefRows } from "./brief.js";
 import { buildPrompts } from "./prompts.js";
+import { sanitizeSpec } from "./style-spec.js";
+import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
+import { requestBrief, requestStyles } from "./llm.js";
 
 const KEY = "identity.atelier.v1";
 const FIELDS = [
-  ["audience", AUDIENCES],
   ["scene", SCENES],
   ["purpose", PURPOSES],
+  ["audience", AUDIENCES],
   ["stage", STAGES],
 ];
 
 function blank() {
   return {
-    audience: "",
     scene: "",
     purpose: "",
+    audience: "",
     stage: "",
     stanceOverride: "",
     custom: { audience: "", scene: "", purpose: "", stage: "" },
-    edits: { headline: "", pitch: "" },
+    edits: { masthead: "", role: "", pitch: "" },
     profile: { ...EMPTY_PROFILE },
+    brief: null,
+    styleSpec: null,
+    candidates: [],
+    paletteHint: "",
   };
 }
 
@@ -32,8 +41,19 @@ function load() {
       ...blank(),
       ...parsed,
       custom: { ...blank().custom, ...(parsed.custom || {}) },
-      edits: { ...blank().edits, ...(parsed.edits || {}) },
+      edits: {
+        masthead: parsed.edits?.masthead || "",
+        role: parsed.edits?.role || parsed.edits?.headline || "",
+        pitch: parsed.edits?.pitch || "",
+      },
       profile: { ...EMPTY_PROFILE, ...(parsed.profile || {}) },
+      // 设计稿存的是模型原文，每次 compose 时重新清洗——清洗规则改了立刻生效。
+      brief: parsed.brief && typeof parsed.brief === "object" ? parsed.brief : null,
+      styleSpec: parsed.styleSpec ? sanitizeSpec(parsed.styleSpec, parsed.styleSpec.id) : null,
+      candidates: Array.isArray(parsed.candidates)
+        ? parsed.candidates.map((s, i) => sanitizeSpec(s, s?.id || `saved-${i}`))
+        : [],
+      paletteHint: PALETTE_FAMILIES.some((f) => f.id === parsed.paletteHint) ? parsed.paletteHint : "",
     };
   } catch {
     return blank();
@@ -41,7 +61,11 @@ function load() {
 }
 
 let state = load();
-let derived = { headline: "", pitch: "" };
+let derived = { masthead: "", role: "", pitch: "" };
+let designing = false;
+let designNote = { text: "", error: false };
+let briefing = false;
+let briefNote = { text: "", error: false };
 
 function persist() {
   try {
@@ -54,14 +78,6 @@ function persist() {
       /* quota */
     }
   }
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }
 
 function readPortrait(file) {
@@ -123,70 +139,120 @@ function renderChipGroup(field, items) {
   if (document.activeElement !== otherInput) otherInput.value = state.custom[field] || "";
 }
 
-function cardMarkup(strategy, profile, face) {
-  const align = strategy.stanceId === "warm" ? "center" : "left";
-  const size = ["authority", "ambitious", "creative"].includes(strategy.stanceId)
-    ? "large"
-    : "medium";
-  const name = profile.name?.trim() || "你的名字";
-  const muted = !profile.name?.trim();
-  const photo =
-    face === "front" && strategy.showPortrait && profile.portrait
-      ? `<img class="portrait" alt="" src="${profile.portrait}" />`
-      : "";
+function renderBrief(strategy) {
+  const brief = strategy.brief;
+  const fromLlm = brief.source === "llm";
+  const btn = document.getElementById("btn-brief");
+  const reset = document.getElementById("btn-brief-reset");
+  const note = document.getElementById("brief-note");
+  const sheet = document.getElementById("brief-sheet");
 
-  if (face === "back") {
-    return `<article class="card" data-stance="${strategy.stanceId}" data-align="${align}">
-      <div class="card-inner">
-        <div>
-          <div class="back-kicker">${escapeHtml(strategy.back.kicker)}</div>
-          <div class="rule"></div>
-          <div class="back-pitch">${escapeHtml(strategy.back.pitch)}</div>
-        </div>
-        <div class="back-cta">${escapeHtml(strategy.back.cta)}</div>
-      </div>
-    </article>`;
+  btn.disabled = briefing;
+  btn.textContent = briefing ? "顾问在写…" : fromLlm ? "重写设计稿" : "让顾问写设计稿";
+  reset.hidden = !fromLlm;
+
+  if (briefNote.text) {
+    note.textContent = briefNote.text;
+  } else if (fromLlm) {
+    note.textContent = "这份设计稿由大模型写。改了上面的问询或资料后它不会自动更新，重写一份即可。";
+  } else {
+    note.textContent =
+      "当前是规则草稿：按场合 × 用途 × 人群 × 阶段直接推出来的，没有 API key 也能用。点右边让大模型按你的资历重写一份。";
   }
+  note.classList.toggle("is-error", briefNote.error);
 
-  const contacts = strategy.contacts
+  const rows = briefRows(brief)
     .map(
-      (c) =>
-        `<span><em>${escapeHtml(c.label)}</em>${escapeHtml(c.value)}</span>`,
+      ([k, v, why]) =>
+        `<div class="sheet-row"><b>${k}</b><span>${escapeHtml(v)}${why ? `<em>${escapeHtml(why)}</em>` : ""}</span></div>`,
     )
     .join("");
-
-  return `<article class="card" data-stance="${strategy.stanceId}" data-align="${align}" data-size="${size}">
-    <div class="card-inner">
-      ${photo}
-      <div>
-        <div class="card-name" style="${muted ? "opacity:.45" : ""}">${escapeHtml(name)}</div>
-        ${
-          profile.nameEn?.trim()
-            ? `<div class="card-en">${escapeHtml(profile.nameEn.trim())}</div>`
-            : ""
-        }
-        <div class="rule"></div>
-        <div class="card-head">${escapeHtml(strategy.headline || "对外身份将写在这里")}</div>
-      </div>
-      <div class="card-contacts">${contacts}</div>
-    </div>
-  </article>`;
+  const tone = brief.tone
+    ? `<div class="sheet-row"><b>气质</b><span>${escapeHtml(brief.tone)}<em>交给第二步的视觉设计师</em></span></div>`
+    : "";
+  const offstage = brief.offstage.length
+    ? `<div class="sheet-row"><b>私下</b><span>${brief.offstage.map((s) => escapeHtml(s)).join("<br />")}</span></div>`
+    : "";
+  sheet.innerHTML =
+    `<div class="sheet-read">${escapeHtml(brief.read)}<span>立场 ${escapeHtml(strategy.stance.label)}${
+      brief.stanceWhy ? ` · ${escapeHtml(brief.stanceWhy)}` : ""
+    }</span></div>` +
+    rows +
+    tone +
+    offstage;
 }
 
-function pair(strategy, profile) {
-  return `<div>
-      <div class="card-label">正面 · 90 × 54 mm</div>
-      <div class="card-wrap"><div class="card-scale">${cardMarkup(strategy, profile, "front")}</div></div>
-    </div>
-    <div>
-      <div class="card-label">背面</div>
-      <div class="card-wrap"><div class="card-scale">${cardMarkup(strategy, profile, "back")}</div></div>
-    </div>`;
+function renderDesigner(strategy) {
+  const btn = document.getElementById("btn-design");
+  const reset = document.getElementById("btn-design-reset");
+  const note = document.getElementById("design-note");
+  const root = document.getElementById("candidates");
+  const adopted = state.styleSpec;
+
+  btn.disabled = designing;
+  btn.textContent = designing ? "设计师在想…" : state.candidates.length ? "再出三版" : "出三版视觉";
+  reset.hidden = !adopted;
+
+  if (designNote.text) {
+    note.textContent = designNote.text;
+  } else if (adopted) {
+    note.textContent = `当前用设计师方案「${adopted.name}」。文案仍然由设计稿决定，这一版只管视觉。`;
+  } else {
+    note.textContent = `当前用内置预设「${strategy.design.spec.name}」，跟着立场走。点右边让大模型读上面那份设计稿出三版视觉；色系可选，不选则三版必须换色相。`;
+  }
+  note.classList.toggle("is-error", designNote.error);
+
+  renderPalettes();
+
+  root.innerHTML = state.candidates
+    .map((spec, i) => {
+      const design = designCard(strategy, state, spec);
+      const on = adopted?.id === spec.id ? " is-on" : "";
+      const swatch = [spec.palette.bg, spec.palette.accent, spec.palette.fg]
+        .map((c) => `<i style="background:${c}"></i>`)
+        .join("");
+      return `<button class="cand${on}" type="button" data-cand="${i}">
+          <div class="card-frame">${cardMarkup(strategy, state.profile, "front", design)}</div>
+          <div class="cand-name"><span>${escapeHtml(spec.name)}</span><span class="cand-swatch">${swatch}</span></div>
+          <div class="cand-why">${escapeHtml(spec.rationale || spec.layoutName)}</div>
+        </button>`;
+    })
+    .join("");
+}
+
+function renderPalettes() {
+  const root = document.getElementById("palettes");
+  if (!root.dataset.ready) {
+    const chip = (id, label, swatches) => {
+      const dots = (swatches || []).map((c) => `<i style="background:${c}"></i>`).join("");
+      return `<button class="palette" type="button" data-palette="${id}"><span class="palette-swatch">${dots}</span>${escapeHtml(
+        label,
+      )}</button>`;
+    };
+    root.innerHTML =
+      chip("", "不限色系", []) + PALETTE_FAMILIES.map((f) => chip(f.id, f.label, f.swatches)).join("");
+    root.addEventListener("click", (event) => {
+      const btn = event.target.closest(".palette");
+      if (!btn) return;
+      state.paletteHint = btn.dataset.palette || "";
+      persist();
+      render({ skipInputs: true });
+    });
+    root.dataset.ready = "1";
+  }
+  for (const btn of root.querySelectorAll(".palette")) {
+    btn.classList.toggle("is-on", (btn.dataset.palette || "") === (state.paletteHint || ""));
+  }
 }
 
 function render(opts = {}) {
   const strategy = compose(state);
-  derived = { headline: strategy.derivedHeadline, pitch: strategy.derivedPitch };
+  const design = strategy.design;
+  derived = {
+    masthead: design.top.find((t) => t.kind === "org")?.label || design.top[0]?.label || "",
+    role: design.under.find((t) => t.kind === "role")?.label || "",
+    pitch: strategy.derivedPitch,
+  };
   const prompts = buildPrompts(state, strategy);
 
   for (const [field, items] of FIELDS) renderChipGroup(field, items);
@@ -196,25 +262,23 @@ function render(opts = {}) {
       if (document.activeElement === el) continue;
       el.value = state.profile[el.dataset.profile] || "";
     }
-    const headline = document.getElementById("e-headline");
+    const masthead = document.getElementById("e-masthead");
+    const role = document.getElementById("e-role");
     const pitch = document.getElementById("e-pitch");
-    if (document.activeElement !== headline) {
-      headline.value = state.edits.headline || strategy.derivedHeadline;
-    }
-    if (document.activeElement !== pitch) {
-      pitch.value = state.edits.pitch || strategy.derivedPitch;
-    }
+    if (document.activeElement !== masthead) masthead.value = state.edits.masthead || derived.masthead;
+    if (document.activeElement !== role) role.value = state.edits.role || derived.role;
+    if (document.activeElement !== pitch) pitch.value = state.edits.pitch || strategy.derivedPitch;
   }
 
   const names = [
-    strategy.audience?.label,
     strategy.scene?.label,
     strategy.purpose?.label,
+    strategy.audience?.label,
     strategy.stage?.label,
   ].filter(Boolean);
   document.getElementById("formula").textContent = names.length
     ? `${names.join(" × ")}  →  ${strategy.stance.label}`
-    : "场景 × 阶段 × 目的 × 对象  →  形象立场";
+    : "场合 × 用途 × 人群 × 阶段  →  设计稿";
 
   const c = strategy.completeness;
   const bits = [`问询 ${c.questions}/${c.questionsTotal}`];
@@ -249,19 +313,42 @@ function render(opts = {}) {
       auto ? btn.dataset.stance === "" : btn.dataset.stance === state.stanceOverride,
     );
   }
+  document.getElementById("stance-label").textContent = `立场：设计稿判为「${
+    STANCES[strategy.brief.stance].label
+  }」，这里可以覆盖（只换内置预设的视觉）`;
+
+  renderBrief(strategy);
+  renderDesigner(strategy);
 
   const brief = document.getElementById("brief");
-  const warns = strategy.warnings
-    .map((w) => `<p class="warn">${escapeHtml(w)}</p>`)
-    .join("");
+  const warns = strategy.warnings.map((w) => `<p class="warn">${escapeHtml(w)}</p>`).join("");
+  const d = design.described;
+  const spec = `<div class="spec">
+        <div class="spec-row"><b>来源</b><span>${escapeHtml(
+          `设计稿 ${design.briefSource === "llm" ? "大模型" : "规则草稿"}　视觉 ${
+            design.source === "llm" ? "大模型" : "内置预设"
+          }`,
+        )}</span></div>
+        <div class="spec-row"><b>风格</b><span>${escapeHtml(design.spec.name)}</span></div>
+        <div class="spec-row"><b>构图</b><span>${escapeHtml(d.layout)}</span></div>
+        <div class="spec-row"><b>纸面</b><span>${escapeHtml(
+          [d.paper, ...d.surface].filter(Boolean).join("；"),
+        )}</span></div>
+        <div class="spec-row"><b>色彩</b><span>${escapeHtml(d.palette)}</span></div>
+        <div class="spec-row"><b>装饰</b><span>${escapeHtml(d.decor.join("；") || "无，靠留白")}</span></div>
+        <div class="spec-row"><b>字体</b><span>${escapeHtml(d.type.join("；"))}</span></div>
+        <div class="spec-row"><b>上排</b><span>${escapeHtml(design.top.map((t) => t.label).join("、") || "留白")}</span></div>
+        <div class="spec-row"><b>姓名下</b><span>${escapeHtml(design.under.map((t) => t.label).join(" · ") || "留白")}</span></div>
+        <div class="spec-row"><b>底栏</b><span>${escapeHtml(design.contacts.map((x) => x.value).join("  ·  ") || "无联系")}</span></div>
+        <div class="spec-row"><b>不上卡</b><span>${escapeHtml(design.omitted.map((t) => `${t.label}：${t.reason}`).join("；") || "无")}</span></div>
+      </div>`;
   const reasons = `<ul>${strategy.rationale.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
-  brief.innerHTML = `${warns}${reasons}<p class="hint">${escapeHtml(strategy.stance.blurb)} 纸面：${escapeHtml(
-    strategy.stance.paper,
-  )}。</p>`;
+  brief.innerHTML = `${warns}${spec}${reasons}`;
 
-  document.getElementById("cards").innerHTML = pair(strategy, state.profile);
+  document.getElementById("cards").innerHTML = cardPair(strategy, state.profile);
   document.getElementById("print-sheet").innerHTML =
-    cardMarkup(strategy, state.profile, "front") + cardMarkup(strategy, state.profile, "back");
+    `<div class="card-frame">${cardMarkup(strategy, state.profile, "front")}</div>` +
+    `<div class="card-frame">${cardMarkup(strategy, state.profile, "back")}</div>`;
   document.getElementById("prompt-zh").textContent = prompts.zh;
   document.getElementById("prompt-en").textContent = prompts.en;
 
@@ -276,6 +363,44 @@ function render(opts = {}) {
   document.getElementById("btn-clear-files").hidden = !hasPortrait && !hasFile;
 }
 
+async function runBrief() {
+  if (briefing) return;
+  briefing = true;
+  briefNote = { text: "顾问在读场合、用途、人群和你的资历…", error: false };
+  render({ skipInputs: true });
+
+  try {
+    state.brief = await requestBrief(briefContext(state));
+    briefNote = { text: "设计稿已出。往下走第二步，让视觉设计师按这份稿子出三版。", error: false };
+    persist();
+  } catch (err) {
+    briefNote = { text: err.message || "设计稿写不出来，稍后再试。", error: true };
+  } finally {
+    briefing = false;
+    render({ skipInputs: true });
+  }
+}
+
+async function runDesigner() {
+  if (designing) return;
+  designing = true;
+  designNote = { text: "设计师在读设计稿的气质要求…", error: false };
+  render({ skipInputs: true });
+
+  try {
+    const specs = await requestStyles(compose(state).brief, briefContext(state), state.paletteHint);
+    state.candidates = specs;
+    state.styleSpec = specs[0];
+    designNote = { text: "三版已出，点任意一版采纳；卡面、说明和生图提示词会跟着换。", error: false };
+    persist();
+  } catch (err) {
+    designNote = { text: err.message || "生成失败，稍后再试。", error: true };
+  } finally {
+    designing = false;
+    render({ skipInputs: true });
+  }
+}
+
 function bind() {
   for (const el of document.querySelectorAll("[data-profile]")) {
     el.addEventListener("input", () => {
@@ -285,15 +410,47 @@ function bind() {
     });
   }
 
-  document.getElementById("e-headline").addEventListener("input", (event) => {
+  document.getElementById("e-masthead").addEventListener("input", (event) => {
     const value = event.target.value;
-    state.edits.headline = value === derived.headline ? "" : value;
+    state.edits.masthead = value === derived.masthead ? "" : value;
+    persist();
+    render({ skipInputs: true });
+  });
+  document.getElementById("e-role").addEventListener("input", (event) => {
+    const value = event.target.value;
+    state.edits.role = value === derived.role ? "" : value;
     persist();
     render({ skipInputs: true });
   });
   document.getElementById("e-pitch").addEventListener("input", (event) => {
     const value = event.target.value;
     state.edits.pitch = value === derived.pitch ? "" : value;
+    persist();
+    render({ skipInputs: true });
+  });
+
+  document.getElementById("btn-brief").addEventListener("click", runBrief);
+  document.getElementById("btn-brief-reset").addEventListener("click", () => {
+    state.brief = null;
+    briefNote = { text: "", error: false };
+    persist();
+    render({ skipInputs: true });
+  });
+
+  document.getElementById("btn-design").addEventListener("click", runDesigner);
+  document.getElementById("btn-design-reset").addEventListener("click", () => {
+    state.styleSpec = null;
+    designNote = { text: "", error: false };
+    persist();
+    render({ skipInputs: true });
+  });
+  document.getElementById("candidates").addEventListener("click", (event) => {
+    const btn = event.target.closest(".cand");
+    if (!btn) return;
+    const spec = state.candidates[Number(btn.dataset.cand)];
+    if (!spec) return;
+    state.styleSpec = spec;
+    designNote = { text: "", error: false };
     persist();
     render({ skipInputs: true });
   });
@@ -347,12 +504,14 @@ function bind() {
       stage: DEMO.stage,
       profile: { ...EMPTY_PROFILE, ...DEMO.profile },
     };
+    designNote = { text: "", error: false };
     persist();
     render();
   });
   document.getElementById("btn-reset").addEventListener("click", () => {
     if (!confirm("清空当前草稿？")) return;
     state = blank();
+    designNote = { text: "", error: false };
     persist();
     render();
   });
@@ -376,15 +535,20 @@ function bind() {
 }
 
 bind();
-if (new URLSearchParams(location.search).has("demo")) {
-  state = {
-    ...blank(),
-    audience: DEMO.audience,
-    scene: DEMO.scene,
-    purpose: DEMO.purpose,
-    stage: DEMO.stage,
-    profile: { ...EMPTY_PROFILE, ...DEMO.profile },
-  };
+{
+  const params = new URLSearchParams(location.search);
+  if (params.has("demo")) {
+    state = {
+      ...blank(),
+      audience: DEMO.audience,
+      scene: DEMO.scene,
+      purpose: DEMO.purpose,
+      stage: DEMO.stage,
+      profile: { ...EMPTY_PROFILE, ...DEMO.profile },
+    };
+  }
+  const stance = params.get("stance");
+  if (stance) state.stanceOverride = stance;
   persist();
 }
 render();
