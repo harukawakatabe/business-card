@@ -128,13 +128,13 @@
           </details>
         </article>
 
-        <div class="go-row">
-          <button class="btn chop" type="button" id="btn-go">生成这份身份</button>
-          <nav class="folio" id="craft" aria-label="制作过程"></nav>
-          <p class="designer-note" id="go-note"></p>
-        </div>
-
-        <section class="pick" id="pick">
+        <div class="folio-stage">
+          <div class="go-row">
+            <button class="btn chop" type="button" id="btn-go">生成这份身份</button>
+            <p class="designer-note" id="go-note"></p>
+          </div>
+          <nav class="folio" id="craft" aria-label="制作过程" aria-live="polite"></nav>
+          <section class="pick" id="pick">
           <div class="q-kicker">选出一版</div>
           <div class="candidates" id="candidates"></div>
           <div class="cards" id="cards"></div>
@@ -149,6 +149,7 @@
             PNG 是 90×54mm、300dpi 的图，给网店或微信。PDF 两页各一张卡，给要 PDF 的印刷流程。vCard 是手机通讯录，不是名片图。
           </p>
         </section>
+        </div>
       </section>
     </main>
 

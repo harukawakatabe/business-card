@@ -132,13 +132,18 @@
   letter-spacing: 0.06em;
 }
 
+.folio-stage {
+  margin-top: 18px;
+}
+
 .pick {
-  margin-top: 22px;
+  margin-top: 12px;
   padding-top: 8px;
+  scroll-margin-top: 148px;
 }
 
 .go-row {
-  margin: 18px 0 4px;
+  margin: 0;
   padding: 18px 0 10px;
   border-top: 1px solid var(--ink);
   display: grid;
@@ -146,13 +151,9 @@
   justify-items: start;
 }
 
-.go-row .folio,
 .go-row .designer-note {
   justify-self: stretch;
   width: 100%;
-}
-
-.go-row .designer-note {
   text-align: center;
 }
 
@@ -163,7 +164,13 @@
 .folio {
   display: grid;
   justify-items: center;
-  margin: 14px 0 0;
+  position: sticky;
+  top: 82px;
+  z-index: 5;
+  margin: 0;
+  padding: 6px 0 10px;
+  background: var(--paper);
+  scroll-margin-top: 82px;
 }
 
 .folio:empty {
@@ -187,6 +194,28 @@
   animation: folio-in 0.42s ease;
 }
 
+.folio-dots {
+  display: inline-block;
+  width: 1.5em;
+  text-align: left;
+}
+
+.folio-dots::after {
+  content: "";
+  animation: folio-dots 1.6s steps(4, end) infinite;
+}
+
+.folio.is-busy::after {
+  content: "";
+  display: block;
+  width: 2.8em;
+  height: 1px;
+  margin: 0 auto;
+  background: var(--ink);
+  transform-origin: center;
+  animation: folio-mark 2.2s ease-in-out infinite;
+}
+
 @keyframes folio-in {
   from {
     transform: translateY(0.55em);
@@ -195,6 +224,49 @@
   to {
     transform: none;
     opacity: 1;
+  }
+}
+
+@keyframes folio-dots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75%,
+  100% {
+    content: "…";
+  }
+}
+
+@keyframes folio-mark {
+  0%,
+  100% {
+    transform: scaleX(0.28);
+    opacity: 0.12;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 0.38;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folio-title {
+    animation: none;
+  }
+  .folio-dots::after {
+    content: "…";
+    animation: none;
+  }
+  .folio.is-busy::after {
+    animation: none;
+    opacity: 0.28;
+    transform: none;
   }
 }
 

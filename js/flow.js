@@ -141,18 +141,33 @@ function folioPage(scheme) {
   return null;
 }
 
+function folioMarkup(page, waiting) {
+  let title = page.title;
+  let wait = "";
+  if (waiting && title.endsWith("…")) {
+    title = title.slice(0, -1);
+    wait = `<span class="folio-dots" aria-hidden="true"></span>`;
+  }
+  return `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(
+    title,
+  )}${wait}</p></div>`;
+}
+
 function renderCraft(scheme) {
   const root = document.getElementById("craft");
   const page = folioPage(scheme);
+  const waiting = Boolean(busy && page && page.id !== "done");
+  root.classList.toggle("is-busy", waiting);
+  root.setAttribute("aria-busy", waiting ? "true" : "false");
   if (!page) {
     root.innerHTML = "";
     return;
   }
   const current = root.querySelector(".folio-title");
-  if (current?.dataset.leaf === page.id) return;
-  root.innerHTML = `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(
-    page.title,
-  )}</p></div>`;
+  const same = current?.dataset.leaf === page.id;
+  const hasDots = Boolean(root.querySelector(".folio-dots"));
+  if (same && hasDots === waiting) return;
+  root.innerHTML = folioMarkup(page, waiting);
 }
 
 function renderPick(strategy) {
@@ -242,6 +257,7 @@ async function generate() {
   phase = "read";
   note = { text: "", error: false };
   render({ skipInputs: true });
+  document.getElementById("craft").scrollIntoView({ behavior: "smooth", block: "center" });
 
   const composeState = toComposeState(archive, scheme);
   const ctx = briefContext(composeState);
@@ -288,7 +304,7 @@ async function generate() {
   busy = false;
   phase = "idle";
   render({ skipInputs: true });
-  document.getElementById("pick").scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("craft").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function exportPng(face) {
