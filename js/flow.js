@@ -29,9 +29,9 @@ const FIELDS = [
 ];
 
 const FOLIO = [
-  { id: "read", title: "顾问在阅读这场相遇和你的资历" },
-  { id: "brief", title: "正在给你出设计稿" },
-  { id: "styles", title: "正在给你出三版视觉" },
+  { id: "read", title: "顾问在读这场相遇和你的资历…" },
+  { id: "styles", title: "设计稿已出，接着出三版视觉…" },
+  { id: "done", title: "三版已出。点一版采纳。" },
 ];
 
 let archive = loadArchive();
@@ -134,20 +134,22 @@ function renderRail() {
     .join("");
 }
 
-function folioPage() {
+function folioPage(scheme) {
   if (phase === "read") return FOLIO[0];
-  if (phase === "brief") return FOLIO[1];
-  if (phase === "styles") return FOLIO[2];
+  if (phase === "brief" || phase === "styles") return FOLIO[1];
+  if (scheme.candidates.length) return FOLIO[2];
   return null;
 }
 
-function renderCraft() {
+function renderCraft(scheme) {
   const root = document.getElementById("craft");
-  const page = folioPage();
+  const page = folioPage(scheme);
   if (!page) {
     root.innerHTML = "";
     return;
   }
+  const current = root.querySelector(".folio-title");
+  if (current?.dataset.leaf === page.id) return;
   root.innerHTML = `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(
     page.title,
   )}</p></div>`;
@@ -158,14 +160,12 @@ function renderPick(strategy) {
   const goNote = document.getElementById("go-note");
   if (note.error && note.text) {
     goNote.textContent = note.text;
-  } else if (!busy && scheme.candidates.length && !scheme.styleSpec) {
-    goNote.textContent = "点一版采纳。";
   } else {
     goNote.textContent = "";
   }
   goNote.classList.toggle("is-error", note.error);
 
-  renderCraft();
+  renderCraft(scheme);
 
   document.getElementById("candidates").innerHTML = scheme.candidates
     .map((spec, i) => {
