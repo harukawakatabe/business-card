@@ -71,3 +71,13 @@ check-spec.mjs      两份契约守卫（node check-spec.mjs）
 ## 约定
 
 目录/文件名英文 kebab-case，界面与说明用中文。密钥只走 `.env`（已 gitignore），由 `server.py` 读取，绝不进浏览器、不进仓库。
+
+<!-- BEGIN auto-commit-hook convention -->
+## 提交规范（auto-commit-hook）
+
+> 由 `auto-commit-hook` 注入；模板在 `~/shaw/agents/hooks/auto-commit-hook/rules/`，改这里不会同步回模板。
+
+- **按批按主题主动提交**：完成一组有意义的修改（一个功能、一类修复、一次重构、一组文档更新）后，主动 commit——用 conventional 前缀（`feat:` / `fix:` / `chore:` / `refactor:` / `docs:` / `style:`）开头，简述本次改动主题；多个要点用「- 」列表补充「新增/修改/删除」了什么。无关改动拆成多个 commit；同一主题的关联改动不要人为拆散。
+- **auto-commit hook 只是兜底**：Claude Code 的 `SessionEnd` hook 在**会话退出时**若工作区仍有未提交改动，会调用 `scripts/session-commit.sh` 用通用 `chore(auto)` 兜底提交一次、不 push——它是安全网而非常规提交手段，message 看不出主题，别依赖它。hook 首次加载或内容变化后需在客户端审查并信任。
+- **改一批再结束任务，不要改一点停一点**：正因为平时不自动提交，零碎结束会让多个主题堆在一个未提交状态、最后只能被兜底成一个通用 commit——每完成一个主题就主动提交，保持历史清晰。
+<!-- END auto-commit-hook convention -->

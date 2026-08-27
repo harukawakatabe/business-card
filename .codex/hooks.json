@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/session-commit.sh\" Codex",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+/Users/cathy/shaw/agents/hooks/auto-commit-hook/scripts/session-commit.sh

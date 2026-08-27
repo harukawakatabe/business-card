@@ -1,0 +1,11 @@
+---
+description: 按主题主动提交；auto-commit hook 仅兜底
+globs:
+alwaysApply: true
+---
+
+## 提交规范（auto-commit-hook）
+
+- **按批按主题主动提交**：完成一组有意义的修改（一个功能、一类修复、一次重构、一组文档更新）后，主动 commit——用 conventional 前缀（`feat:` / `fix:` / `chore:` / `refactor:` / `docs:` / `style:`）开头，简述本次改动主题；多个要点用「- 」列表补充「新增/修改/删除」了什么。无关改动拆成多个 commit；同一主题的关联改动不要人为拆散。
+- **auto-commit hook 只是兜底**：Cursor 的 `stop` hook 在**每个 task 完成时**若仍有未提交改动，会调用 `scripts/session-commit.sh` 用通用 `chore(auto)` 兜底提交一次、不 push——它是安全网而非常规提交手段，message 看不出主题，别依赖它。主动按主题提交才是正事。hook 首次加载或内容变化后需在客户端审查并信任。
+- **改一批再结束任务，不要改一点停一点**：每完成一个主题就主动提交，避免多个主题堆在一个未提交状态、最后被兜底成一个通用 commit。
