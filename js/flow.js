@@ -29,9 +29,9 @@ const FIELDS = [
 ];
 
 const FOLIO = [
-  { id: "read", title: "顾问阅读资料", leaf: "其一", jump: "" },
-  { id: "brief", title: "设计稿", leaf: "其二", jump: "brief-sheet" },
-  { id: "styles", title: "三版视觉", leaf: "其三", jump: "candidates" },
+  { id: "read", title: "顾问在阅读这场相遇和你的资历" },
+  { id: "brief", title: "正在给你出设计稿" },
+  { id: "styles", title: "正在给你出三版视觉" },
 ];
 
 let archive = loadArchive();
@@ -134,46 +134,23 @@ function renderRail() {
     .join("");
 }
 
-function craftState(stepId, scheme) {
-  const order = FOLIO.map((s) => s.id);
-  const idx = order.indexOf(stepId);
-  const now = order.indexOf(phase);
-  if (phase !== "idle") {
-    if (now === idx) return "now";
-    if (now > idx) return "done";
-    return "wait";
-  }
-  const hasBrief = Boolean(scheme.brief) || Boolean(scheme.candidates.length);
-  const hasStyles = Boolean(scheme.candidates.length);
-  if (stepId === "read") return hasBrief || hasStyles ? "done" : "wait";
-  if (stepId === "brief") return hasBrief ? "done" : "wait";
-  return hasStyles ? "done" : "wait";
-}
-
-function folioPage(scheme) {
+function folioPage() {
   if (phase === "read") return FOLIO[0];
   if (phase === "brief") return FOLIO[1];
   if (phase === "styles") return FOLIO[2];
-  if (scheme.candidates.length) return FOLIO[2];
-  if (scheme.brief) return FOLIO[1];
-  return FOLIO[0];
+  return null;
 }
 
-function renderCraft(scheme) {
-  const page = folioPage(scheme);
-  const marks = FOLIO.map((step) => {
-    const state = craftState(step.id, scheme);
-    const on = page.id === step.id ? " is-on" : "";
-    const jump = (state === "done" || state === "now") && step.jump;
-    return `<li>
-        <button class="${on.trim()}${jump ? " is-jump" : ""}" type="button" data-craft="${step.id}" ${
-          jump ? "" : "disabled"
-        }>${escapeHtml(step.leaf)}</button>
-      </li>`;
-  }).join("");
-  document.getElementById("craft").innerHTML =
-    `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(page.title)}</p></div>` +
-    `<ol class="folio-marks">${marks}</ol>`;
+function renderCraft() {
+  const root = document.getElementById("craft");
+  const page = folioPage();
+  if (!page) {
+    root.innerHTML = "";
+    return;
+  }
+  root.innerHTML = `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(
+    page.title,
+  )}</p></div>`;
 }
 
 function renderPick(strategy) {
@@ -188,7 +165,7 @@ function renderPick(strategy) {
   }
   goNote.classList.toggle("is-error", note.error);
 
-  renderCraft(scheme);
+  renderCraft();
 
   document.getElementById("candidates").innerHTML = scheme.candidates
     .map((spec, i) => {
@@ -405,13 +382,6 @@ function bind() {
     persist();
     note = { text: "", error: false };
     render();
-  });
-  document.getElementById("craft").addEventListener("click", (event) => {
-    const btn = event.target.closest("[data-craft]");
-    if (!btn || btn.disabled) return;
-    const step = FOLIO.find((s) => s.id === btn.dataset.craft);
-    const target = step?.jump && document.getElementById(step.jump);
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.getElementById("candidates").addEventListener("click", (event) => {
     const btn = event.target.closest("[data-cand]");
