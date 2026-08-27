@@ -213,6 +213,8 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
       contactAlign: pick(t.contactAlign, ["left", "center", "right"], "left"),
       ornament: bool(t.ornament),
       upperMasthead: bool(t.upperMasthead, true),
+      nameLeading: 1.35,
+      roleLeading: 1.42,
     },
     decor,
     copy: {
@@ -222,8 +224,24 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
     },
   };
 
+  fitType(spec);
+  fitType(spec);
   fitSides(spec);
   return spec;
+}
+
+/**
+ * 中文衬线 / 海报体出格会缺笔：字距过大像漏字，行高过紧上下被裁。
+ * 清洗器在这里把字距和行高收到可印区间，不把问题留给 CSS overflow。
+ */
+function fitType(spec) {
+  const t = spec.type;
+  const nameCap = t.nameFamily === "sans" ? 0.22 : 0.18;
+  t.nameTrack = Math.min(t.nameTrack, nameCap);
+  t.roleTrack = Math.min(t.roleTrack, 0.12);
+  t.mastheadTrack = Math.min(t.mastheadTrack, t.upperMasthead ? 0.36 : 0.22);
+  t.nameLeading = t.nameFamily === "sans" ? 1.32 : 1.38;
+  t.roleLeading = 1.42;
 }
 
 /** 正文至少要拿到 38% 版宽，剩下的才轮到侧边装饰和竖排姓名分。 */
@@ -317,6 +335,7 @@ export function specToVars(spec, flip = false) {
     `--name-font:${FAMILIES[t.nameFamily]}`,
     `--name-size:${t.nameSize}cqw`,
     `--name-track:${t.nameTrack}em`,
+    `--name-leading:${t.nameLeading || 1.35}`,
     `--name-weight:${t.nameWeight}`,
     `--name-color:${resolveColor(spec, t.nameColor, spec.palette.fg)}`,
     `--masthead-size:${t.mastheadSize}cqw`,
@@ -325,6 +344,7 @@ export function specToVars(spec, flip = false) {
     `--masthead-transform:${t.upperMasthead ? "uppercase" : "none"}`,
     `--role-size:${t.roleSize}cqw`,
     `--role-track:${t.roleTrack}em`,
+    `--role-leading:${t.roleLeading || 1.42}`,
     `--role-color:${resolveColor(spec, t.roleColor, spec.palette.muted)}`,
     `--contact-size:${t.contactSize}cqw`,
     `--contact-justify:${ALIGN_ITEMS[t.contactAlign]}`,
@@ -519,8 +539,8 @@ const RAW_PRESETS = {
     surface: { grain: 0.28, vignette: 0.22, monogram: 0.06 },
     frame: { align: "left", anchor: "center", pad: { t: 8, r: 8, b: 7, l: 9 } },
     type: {
-      nameFamily: "display", nameSize: 9.4, nameTrack: 0.28, nameWeight: 600,
-      mastheadSize: 2.5, mastheadTrack: 0.28, roleSize: 2.7, roleTrack: 0.22,
+      nameFamily: "display", nameSize: 9.4, nameTrack: 0.16, nameWeight: 600,
+      mastheadSize: 2.5, mastheadTrack: 0.22, roleSize: 2.7, roleTrack: 0.1,
       roleColor: "accent", contactSize: 2.5, contactAlign: "right", mastheadColor: "muted",
     },
     decor: [
@@ -573,8 +593,8 @@ const RAW_PRESETS = {
     surface: { grain: 0.2, radius: 1.4 },
     frame: { align: "center", anchor: "center", pad: { t: 8, r: 8, b: 8, l: 8 } },
     type: {
-      nameFamily: "display", nameSize: 8.8, nameTrack: 0.34, nameWeight: 500,
-      mastheadSize: 2.5, mastheadTrack: 0.28, roleSize: 2.85, roleTrack: 0.12,
+      nameFamily: "display", nameSize: 8.8, nameTrack: 0.16, nameWeight: 500,
+      mastheadSize: 2.5, mastheadTrack: 0.22, roleSize: 2.85, roleTrack: 0.1,
       contactSize: 2.65, contactAlign: "center", ornament: true,
     },
     decor: [{ kind: "edge", side: "bottom", size: 30, color: "accent", fade: true, opacity: 0.42 }],
@@ -605,7 +625,7 @@ const RAW_PRESETS = {
     surface: { grain: 0.3 },
     frame: { align: "left", anchor: "center", pad: { t: 7, r: 7, b: 7, l: 34 } },
     type: {
-      nameFamily: "serif", nameSize: 6.4, nameTrack: 0.32, nameWeight: 500,
+      nameFamily: "serif", nameSize: 6.4, nameTrack: 0.14, nameWeight: 500,
       nameVertical: true, nameSide: "left", nameColor: "#f4ead7",
       mastheadSize: 2.5, mastheadTrack: 0.24, roleSize: 3.0, roleTrack: 0.1,
       contactSize: 2.55, contactAlign: "left",

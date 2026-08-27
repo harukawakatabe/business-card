@@ -668,8 +668,11 @@ a.btn {
   letter-spacing: var(--masthead-track, 0.34em);
   text-transform: var(--masthead-transform, uppercase);
   color: var(--masthead-color, var(--card-muted));
+  line-height: 1.45;
   white-space: nowrap;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding-block: 0.08em;
 }
 
 .ornament {
@@ -699,18 +702,28 @@ a.btn {
   min-width: 0;
   min-height: 0;
   width: 100%;
+  overflow: visible;
+}
+
+.z-hero > .card-name,
+.z-hero > .card-en,
+.z-hero > .tag-row,
+.z-hero > .ornament {
+  flex-shrink: 0;
 }
 
 .card-name {
   font-family: var(--name-font, var(--display));
   font-size: var(--name-size, 8cqw);
   letter-spacing: var(--name-track, 0.2em);
-  line-height: 1.12;
+  line-height: var(--name-leading, 1.35);
   font-weight: var(--name-weight, 600);
   color: var(--name-color, var(--card-fg));
   white-space: nowrap;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   max-width: 100%;
+  padding-block: 0.1em;
 }
 
 /* 竖排姓名脱离三分区，压在侧边装饰上；正文侧的留白由规格清洗器让出。 */
@@ -720,6 +733,8 @@ a.btn {
   bottom: 8%;
   writing-mode: vertical-rl;
   z-index: 2;
+  overflow: visible;
+  line-height: var(--name-leading, 1.35);
 }
 
 .card-name.is-vertical[data-side="left"] {
@@ -739,13 +754,16 @@ a.btn {
 }
 
 .tag-row {
-  margin-top: 2.2cqh;
+  margin-top: 2.8cqh;
   font-size: var(--role-size, 2.8cqw);
   letter-spacing: var(--role-track, 0.12em);
+  line-height: var(--role-leading, 1.42);
   color: var(--role-color, var(--card-muted));
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   white-space: nowrap;
   max-width: 100%;
+  padding-block: 0.1em;
 }
 
 .z-bottom {
