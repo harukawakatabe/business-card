@@ -8,6 +8,62 @@
 
 import { describeSpec, presetFor, sanitizeSpec } from "./style-spec.js";
 
+/** 正文区宽度，和 CSS 的 cqw 同一刻度（左右 pad 是百分比）。 */
+export function faceWidthCqw(spec) {
+  const p = spec.frame.pad;
+  return Math.max(18, 100 - p.l - p.r);
+}
+
+/** 底栏一行的占宽。拉丁字母按窄字估计，宁可少放一条，不许用省略号。 */
+export function lineWidthCqw(text, sizeCqw, trackEm = 0.06) {
+  let w = 0;
+  for (const ch of String(text)) {
+    const wide = ch.charCodeAt(0) > 0x2e7f;
+    w += sizeCqw * (wide ? 1.02 : 0.62) * (1 + trackEm);
+  }
+  return w;
+}
+
+/**
+ * 按这套规格的左右留白和字号，决定底栏实际能印几条。
+ * 条目上限只是上限；一行排不下就从后面拿掉，记进不上卡。
+ */
+export function fitPrintedContacts(contacts, spec) {
+  const list = Array.isArray(contacts) ? contacts.slice(0, spec.copy.maxContacts) : [];
+  const rest = Array.isArray(contacts) ? contacts.slice(spec.copy.maxContacts) : [];
+  const size = spec.type.contactSize;
+  const usable = faceWidthCqw(spec);
+  const gap = 1.6;
+  const kept = [];
+  const overflow = [...rest];
+
+  if (spec.copy.contactStyle === "stack") {
+    for (const c of list) {
+      if (lineWidthCqw(c.value, size) <= usable) kept.push(c);
+      else overflow.push(c);
+    }
+  } else {
+    let used = 0;
+    for (const c of list) {
+      const w = lineWidthCqw(c.value, size);
+      const extra = kept.length ? gap : 0;
+      if (used + extra + w <= usable) {
+        kept.push(c);
+        used += extra + w;
+      } else {
+        overflow.push(c);
+      }
+    }
+  }
+
+  if (!kept.length && list.length) {
+    const first = overflow.indexOf(list[0]);
+    if (first >= 0) overflow.splice(first, 1);
+    kept.push(list[0]);
+  }
+  return { kept, overflow };
+}
+
 /** 场合的信息密度会覆盖规格里的条目上限：饭桌上字多等于没人看。 */
 function densityCap(spec, scene) {
   const d = scene?.density ?? 0.55;
@@ -50,15 +106,19 @@ export function designCard(identity, state, override) {
   const editedRole = (edits.role ?? "").trim();
   if (editedRole) underAll[0] = editedRole;
   const under = underAll.slice(0, spec.copy.maxUnder).map((label) => ({ label }));
-  const contacts = brief.contacts.slice(0, spec.copy.maxContacts);
+  const fitted = fitPrintedContacts(brief.contacts, spec);
+  const contacts = fitted.kept;
 
   // 设计稿主动拿掉的，加上被这套版面挤掉的，一起对用户交代。
   const omitted = [...brief.omitted];
   for (const label of underAll.slice(spec.copy.maxUnder)) {
     omitted.push({ label, reason: "这套版面的姓名下只放得下前几条" });
   }
-  for (const c of brief.contacts.slice(spec.copy.maxContacts)) {
-    omitted.push({ label: c.label, reason: "超出这套版面的底栏容量，主通道优先" });
+  for (const c of fitted.overflow) {
+    omitted.push({
+      label: c.label,
+      reason: spec.copy.contactStyle === "stack" ? "这条联系方式比底栏更长，不上卡" : "这套版面底栏一行排不下，主通道优先",
+    });
   }
 
   const described = describeSpec(spec);

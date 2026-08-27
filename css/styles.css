@@ -668,7 +668,6 @@ a.btn {
   color: var(--masthead-color, var(--card-muted));
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .ornament {
@@ -709,7 +708,6 @@ a.btn {
   color: var(--name-color, var(--card-fg));
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
 }
 
@@ -744,7 +742,6 @@ a.btn {
   letter-spacing: var(--role-track, 0.12em);
   color: var(--role-color, var(--card-muted));
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
 }
@@ -763,9 +760,8 @@ a.btn {
 }
 
 .z-bottom span {
+  flex: 0 0 auto;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .card[data-contact="row"] .z-bottom {

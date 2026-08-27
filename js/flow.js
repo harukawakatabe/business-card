@@ -30,9 +30,9 @@ const FIELDS = [
 ];
 
 const CRAFT_STEPS = [
-  { id: "read", title: "顾问阅读", hint: "读这场相遇和你的资历", jump: "" },
-  { id: "brief", title: "设计稿已出", hint: "什么字上卡、为什么不上", jump: "brief-sheet" },
-  { id: "styles", title: "三版视觉", hint: "十八套色系里抽三套来做", jump: "candidates" },
+  { id: "read", title: "顾问已读", jump: "" },
+  { id: "brief", title: "设计稿已出", jump: "brief-sheet" },
+  { id: "styles", title: "三版视觉", jump: "candidates" },
 ];
 
 let archive = loadArchive();
@@ -152,17 +152,14 @@ function craftState(stepId, scheme) {
 }
 
 function renderCraft(scheme) {
-  document.getElementById("craft").innerHTML = CRAFT_STEPS.map((step) => {
+  document.getElementById("craft").innerHTML = CRAFT_STEPS.map((step, i) => {
     const state = craftState(step.id, scheme);
     const jump = state === "done" && step.jump;
-    const mark = state === "done" ? "✓" : "";
-    return `<li class="craft-step is-${state}${jump ? " is-jump" : ""}">
-        <button type="button" data-craft="${step.id}" ${jump ? "" : "disabled"}>
-          <span class="craft-dot" aria-hidden="true">${mark}</span>
-          <b>${escapeHtml(step.title)}</b>
-          <small>${escapeHtml(step.hint)}</small>
-        </button>
-      </li>`;
+    const mark = `<button class="craft-mark is-${state}${jump ? " is-jump" : ""}" type="button" data-craft="${
+      step.id
+    }" ${jump ? "" : "disabled"}>${escapeHtml(step.title)}</button>`;
+    const dot = i ? `<i aria-hidden="true">·</i>` : "";
+    return dot + mark;
   }).join("");
 }
 

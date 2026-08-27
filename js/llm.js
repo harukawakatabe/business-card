@@ -304,8 +304,8 @@ const SPEC_SCHEMA = {
       type: "object",
       required: ["maxUnder", "maxContacts", "contactStyle"],
       properties: {
-        maxUnder: { type: "number", description: "姓名下最多几条标签 1-3。不要小于设计稿实际要排的条数，否则会被截断" },
-        maxContacts: { type: "number", description: "底栏最多几条联系 1-4。同上，不要小于设计稿的条数" },
+        maxUnder: { type: "number", description: "姓名下最多几条标签 1-3。装不下就少放，不要为了塞字抬高上限" },
+        maxContacts: { type: "number", description: "底栏最多几条联系 1-4。一行排不下就少放或改 stack，不许靠省略号截断" },
         contactStyle: { type: "string", enum: ["bare", "row", "stack"], description: "bare=裸排；row=上方加一条分隔线；stack=竖着堆" },
       },
     },
@@ -332,7 +332,7 @@ const STYLE_SYSTEM = `你是一位为高管和创业者做「对外身份」的�
 
 铁律：
 1. 一次给三个方案，三者必须明显不同——不同的色相家族、不同的明暗关系、不同的构图骨架、不同的装饰手法。不要出三个只改了深浅的同一张绿卡或同一张黑卡。
-2. 三个方案都必须装得下设计稿要排的字：maxUnder 不小于姓名下的条数，maxContacts 不小于底栏的条数，否则会被截断。
+2. 三个方案都必须让设计稿的字完整出现在 90×54mm 上：装得下就排，装不下就少放（maxUnder / maxContacts 按这套构图能印的条数来），溢出的前端会记进「不上卡」。名片上不许出现省略号、不许把电话邮箱截成 138 0...。
 3. 主文字与底色必须拉开对比。底 / 底2 / 主文字 / 次文字 / 强调 这五个槽都可以用不同色相；装饰层还可以另给 hex，不必收成「三色印刷」。一张卡不必须是单色。
 4. 工作室界面是雪松绿，那是网页皮肤，与名片无关。不要把三张卡都做成墨绿、冷绿白或树皮棕。
 5. 中文姓名不要转大写；中文组织名把 upperMasthead 设为 false。

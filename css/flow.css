@@ -158,104 +158,46 @@
 
 .craft {
   display: flex;
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
-  width: min(100%, 520px);
-}
-
-.craft-step {
-  flex: 1;
-  position: relative;
-  min-width: 0;
-}
-
-.craft-step > button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.55em;
   width: 100%;
-  border: 0;
-  background: transparent;
-  padding: 4px 6px 0;
-  cursor: default;
-}
-
-.craft-step > button:disabled {
-  opacity: 1;
-  cursor: default;
-}
-
-.craft-step.is-jump > button {
-  cursor: pointer;
-}
-
-.craft-step:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  top: 13px;
-  left: calc(50% + 12px);
-  right: calc(-50% + 12px);
-  height: 1px;
-  background: var(--rule);
-  pointer-events: none;
-}
-
-.craft-step.is-done:not(:last-child)::after,
-.craft-step.is-now:not(:last-child)::after {
-  background: var(--accent);
-}
-
-.craft-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1.5px solid var(--rule);
-  background: var(--paper);
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  line-height: 1;
-  color: transparent;
-  z-index: 1;
-}
-
-.craft-step.is-done .craft-dot {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--paper);
-}
-
-.craft-step.is-now .craft-dot {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-.craft-step.is-now .craft-dot::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.craft-step b {
-  font-size: 12px;
-  font-weight: 560;
+  margin: 12px 0 0;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.22em;
   color: var(--ink-faint);
 }
 
-.craft-step.is-done b,
-.craft-step.is-now b {
+.craft i {
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--rule);
+}
+
+.craft-mark {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+.craft-mark:disabled {
+  opacity: 1;
+}
+
+.craft-mark.is-done,
+.craft-mark.is-now {
   color: var(--ink);
 }
 
-.craft-step small {
-  font-size: 11px;
-  color: var(--ink-faint);
-  line-height: 1.35;
-  text-align: center;
+.craft-mark.is-jump {
+  cursor: pointer;
 }
 
 @media (max-width: 980px) {

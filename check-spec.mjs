@@ -9,8 +9,10 @@
 import { PRESETS, sanitizeSpec, specToVars, decorHtml, describeSpec } from "./js/style-spec.js";
 import { briefContext, compose } from "./js/strategy.js";
 import { availableContacts, draftBrief, sanitizeBrief } from "./js/brief.js";
+import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw } from "./js/design.js";
 import { buildPrompts } from "./js/prompts.js";
 import { DEMO, EMPTY_PROFILE, STANCES } from "./js/data.js";
+import { readFileSync } from "node:fs";
 
 let fail = 0;
 const bad = (msg) => {
