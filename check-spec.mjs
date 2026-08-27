@@ -9,7 +9,7 @@
 import { PRESETS, sanitizeSpec, specToVars, decorHtml, describeSpec } from "./js/style-spec.js";
 import { briefContext, compose } from "./js/strategy.js";
 import { availableContacts, draftBrief, sanitizeBrief } from "./js/brief.js";
-import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw } from "./js/design.js";
+import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw, printIssues } from "./js/design.js";
 import { buildPrompts } from "./js/prompts.js";
 import { DEMO, EMPTY_PROFILE, STANCES } from "./js/data.js";
 import { readFileSync } from "node:fs";
@@ -69,13 +69,16 @@ function auditSpec(label, spec) {
   if ((spec.type.nameLeading || 0) < 1.28) bad(`${label} 姓名行高过紧，上下会被裁`);
 }
 
-function auditPrintFit(label, design) {
+function auditPrintFit(label, design, profile = {}) {
   for (const c of design.contacts) {
     if (/\.\.\.|…/.test(c.value)) bad(`${label} 底栏含省略号: ${c.value}`);
   }
   const { overflow } = fitPrintedContacts(design.contacts, design.spec);
   if (overflow.length) {
     bad(`${label} 已排底栏仍溢出: ${overflow.map((c) => c.value).join(" / ")}`);
+  }
+  for (const issue of printIssues(design, profile)) {
+    bad(`${label} ${issue}`);
   }
 }
 
@@ -134,7 +137,7 @@ for (const stance of ["", ...Object.keys(PRESETS)]) {
   const strategy = compose(state);
   auditSpec(`compose:${stance || "auto"}`, strategy.design.spec);
   auditBrief(`compose:${stance || "auto"}`, strategy.brief, briefContext(state));
-  auditPrintFit(`compose:${stance || "auto"}`, strategy.design);
+  auditPrintFit(`compose:${stance || "auto"}`, strategy.design, state.profile);
   const p = buildPrompts(state, strategy);
   for (const [k, v] of Object.entries(p)) {
     if (!v.length) bad(`compose:${stance} 提示词 ${k} 为空`);
@@ -329,7 +332,7 @@ for (const [i, g] of garbage.entries()) {
   stub(200, {
     content: [
       { type: "text", text: "忽略这段" },
-      { type: "tool_use", name: "propose_styles", input: { styles: [garbage[4], {}, garbage[3]] } },
+      { type: "tool_use", name: "propose_styles", input: { styles: [PRESETS.authority, PRESETS.credible, PRESETS.warm] } },
     ],
   });
   try {
@@ -457,7 +460,20 @@ for (const [i, g] of garbage.entries()) {
   if (crowded.contacts.length > fitted.kept.length + 1) {
     bad(`designCard 窄版面仍排了 ${crowded.contacts.length} 条联系`);
   }
-  auditPrintFit("design:squeezed", crowded);
+  auditPrintFit("design:squeezed", crowded, base.profile);
+
+  const stacked = sanitizeSpec(
+    {
+      ...PRESETS.authority,
+      type: { ...PRESETS.authority.type, nameSize: 12, ornament: true },
+      copy: { maxUnder: 2, maxContacts: 4, contactStyle: "stack" },
+    },
+    "stacked-tall",
+  );
+  const stackedDesign = designCard(identity, { ...base, styleSpec: stacked }, stacked);
+  if (!printIssues(stackedDesign, base.profile).length) {
+    bad("大姓名 + 竖排四条底栏应被印制规则拦住，不能直接拿给用户");
+  }
 }
 
 console.log(fail ? `\n${fail} 处问题` : "\n全部通过");

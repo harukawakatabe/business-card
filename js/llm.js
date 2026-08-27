@@ -6,10 +6,12 @@
  *
  * 两段都走 server.py 的 /api/design 代理，API key 不进浏览器。
  * 两段的产物都要过各自的清洗器（sanitizeBrief / sanitizeSpec）才允许进渲染路径。
+ * 视觉还要过印制规则（printIssues）：叠字、裁字、超出版心的方案丢掉，整组重出。
  */
 
 import { availableContacts, sanitizeBrief } from "./brief.js";
 import { sanitizeSpec } from "./style-spec.js";
+import { designCard, printIssues } from "./design.js";
 import { CONTACT_LABELS, PALETTE_FAMILIES, STANCES } from "./data.js";
 
 const COLOR = { type: "string", description: "六位十六进制颜色，如 #1b2428" };
@@ -306,7 +308,7 @@ const SPEC_SCHEMA = {
       properties: {
         maxUnder: { type: "number", description: "姓名下最多几条标签 1-3。装不下就少放，不要为了塞字抬高上限" },
         maxContacts: { type: "number", description: "底栏最多几条联系 1-4。一行排不下就少放或改 stack，不许靠省略号截断" },
-        contactStyle: { type: "string", enum: ["bare", "row", "stack"], description: "bare=裸排；row=上方加一条分隔线；stack=竖着堆" },
+        contactStyle: { type: "string", enum: ["bare", "row", "stack"], description: "bare=裸排；row=上方加一条分隔线；stack=竖着堆。stack 条数必须按 90×54 的高度来，装不下就少放或改 bare/row，不许叠到姓名上" },
       },
     },
   },
@@ -341,6 +343,7 @@ const STYLE_SYSTEM = `你是一位为高管和创业者做「对外身份」的�
 8. 场合越嘈杂、阅读时间越短，字号越大、条目越少。上排 / 姓名下 / 底栏不要低于约 2.4cqw——90×54mm 上更小的字印出来等于没有。
 9. 色相按这次相遇自己选。模板有墨金、骨白青、夜橙、陶土、雪墨、亚麻紫、朱砂、海纹、松墨、青瓷、黛蓝、玫瑰木、石墨、琥珀、象牙酒红、玄银、青砖、麦秆，也可以自创，只要印得出、看得清。工作室网页的雪松绿与名片无关。
 10. 中文不要拉大字距、不要压行高。宋体和海报体出格会缺笔，看起来像错字；姓名下标签尤其如此。字距宁紧勿松，行高必须让横笔和宝盖完整露出来。
+11. 90×54mm 上上排、姓名、头衔、底栏必须各在各的区，不许重叠、不许裁掉笔画、不许用省略号截断。竖排底栏尤其容易把头衔和电话叠在一起——宁可少放一条或改成一行，也不要交一份印不全的稿。前端会按纸面检查，过不了会整组重出。
 
 先读懂设计稿的气质要求，再决定纸面。不要解释，直接调用工具提交。`;
 
@@ -443,18 +446,41 @@ export async function requestBrief(ctx) {
   return sanitizeBrief(input, ctx, `brief-${Date.now()}`);
 }
 
-/** 第二段：按设计稿出三版视觉。paletteHint 可以是一个色系 id、一组 id，或空。 */
+const STYLE_ATTEMPTS = 3;
+
+/** 第二段：按设计稿出三版视觉。paletteHint 可以是一个色系 id、一组 id，或空。过不了印制规则的方案丢掉，整组再要。 */
 export async function requestStyles(brief, ctx, paletteHint = "") {
-  const input = await callDesigner({
-    system: STYLE_SYSTEM,
-    tool: STYLE_TOOL,
-    message: styleMessage(brief, ctx, paletteHint),
-    // 三份完整规格的 JSON 不短，额度给足，不然会在第三份中间被截断。
-    maxTokens: 8192,
-  });
-  const styles = input.styles;
-  if (!Array.isArray(styles) || !styles.length) {
-    throw new Error("模型没有按规格返回方案，再试一次。");
+  const accepted = [];
+  let extra = "";
+  let lastIssue = "";
+  for (let attempt = 0; attempt < STYLE_ATTEMPTS && accepted.length < 3; attempt++) {
+    const input = await callDesigner({
+      system: STYLE_SYSTEM,
+      tool: STYLE_TOOL,
+      message: styleMessage(brief, ctx, paletteHint) + extra,
+      maxTokens: 8192,
+    });
+    const styles = input.styles;
+    if (!Array.isArray(styles) || !styles.length) {
+      throw new Error("模型没有按规格返回方案，再试一次。");
+    }
+    for (const raw of styles) {
+      if (accepted.length >= 3) break;
+      const spec = sanitizeSpec(raw, `llm-${Date.now()}-${accepted.length}`);
+      const design = designCard({ brief, scene: ctx.scene }, { profile: ctx.profile || {}, edits: {} }, spec);
+      const issues = printIssues(design, ctx.profile || {});
+      if (issues.length) {
+        lastIssue = issues[0];
+        continue;
+      }
+      accepted.push(spec);
+    }
+    if (accepted.length < 3) {
+      extra = `\n\n上一轮有方案印不到 90×54mm 上（${lastIssue || "叠字、裁字或超出版心"}）。请换构图或少放底栏，不要再交同样的骨架。`;
+    }
   }
-  return styles.slice(0, 3).map((s, i) => sanitizeSpec(s, `llm-${Date.now()}-${i}`));
+  if (accepted.length < 3) {
+    throw new Error("三版视觉印不到 90×54mm 上，请再试一次。");
+  }
+  return accepted.slice(0, 3);
 }

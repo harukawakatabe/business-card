@@ -194,21 +194,10 @@
   animation: folio-in 0.42s ease;
 }
 
-.folio-dots {
-  display: inline-block;
-  width: 1.5em;
-  text-align: left;
-}
-
-.folio-dots::after {
-  content: "";
-  animation: folio-dots 1.6s steps(4, end) infinite;
-}
-
 .folio.is-busy::after {
   content: "";
   display: block;
-  width: 2.8em;
+  width: 3.6em;
   height: 1px;
   margin: 0 auto;
   background: var(--ink);
@@ -227,22 +216,6 @@
   }
 }
 
-@keyframes folio-dots {
-  0% {
-    content: "";
-  }
-  25% {
-    content: ".";
-  }
-  50% {
-    content: "..";
-  }
-  75%,
-  100% {
-    content: "…";
-  }
-}
-
 @keyframes folio-mark {
   0%,
   100% {
@@ -251,16 +224,12 @@
   }
   50% {
     transform: scaleX(1);
-    opacity: 0.38;
+    opacity: 0.48;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .folio-title {
-    animation: none;
-  }
-  .folio-dots::after {
-    content: "…";
     animation: none;
   }
   .folio.is-busy::after {

@@ -14,6 +14,91 @@ export function faceWidthCqw(spec) {
   return Math.max(18, 100 - p.l - p.r);
 }
 
+/**
+ * 90×54 上 padding 百分比相对的是宽度，换成 cqh 要乘宽高比。
+ * 用来检查「这套字号 + 这些条目」会不会在卡面上叠在一起。
+ */
+const CARD_AR = 90 / 54;
+
+export function faceHeightCqh(spec) {
+  const p = spec.frame.pad;
+  return Math.max(28, 100 - (p.t + p.b) * CARD_AR);
+}
+
+function lineCqh(sizeCqw, leading) {
+  return sizeCqw * CARD_AR * leading;
+}
+
+/** 设计稿按这套规格排完之后，正文实际占用的高度（不含页边）。 */
+export function usedContentCqh(design, profile = {}) {
+  const spec = design.spec;
+  const t = spec.type;
+  let h = 0;
+  if (design.top.length) h += lineCqh(t.mastheadSize, 1.45) + 1;
+  if (!t.nameVertical) h += lineCqh(t.nameSize, t.nameLeading || 1.35) + 1.8;
+  if (design.showNameEn && profile.nameEn?.trim()) h += 4.2;
+  if (t.ornament) h += 5.2;
+  h += design.under.length * (lineCqh(t.roleSize, t.roleLeading || 1.42) + 2.8);
+  if (spec.copy.contactStyle === "stack") {
+    h += Math.max(0, design.contacts.length) * (lineCqh(t.contactSize, 1.35) + 0.8);
+  } else if (design.contacts.length) {
+    h += lineCqh(t.contactSize, 1.35) + (spec.copy.contactStyle === "row" ? 2.2 : 0.8);
+  }
+  return h;
+}
+
+/**
+ * 印制规则：过不了就不该拿给用户看（叠字、裁字、省略号、超出版心）。
+ * 清洗器只夹数值；这一层看排完之后的卡面。
+ */
+export function printIssues(design, profile = {}) {
+  const spec = design.spec;
+  const t = spec.type;
+  const issues = [];
+  const texts = [
+    ...(profile.name ? [profile.name] : []),
+    ...design.top.map((x) => x.label),
+    ...design.under.map((x) => x.label),
+    ...design.contacts.map((c) => c.value),
+  ];
+  for (const s of texts) {
+    if (/\.\.\.|…/.test(s)) issues.push("卡面出现省略号");
+  }
+  if ((t.nameLeading || 0) < 1.28) issues.push("姓名行高过紧，字会被裁");
+  if ((t.roleLeading || 0) < 1.28) issues.push("头衔行高过紧，字会被裁");
+  if (t.nameFamily !== "sans" && t.nameTrack > 0.181) issues.push("姓名字距过大，会缺笔");
+  if (t.roleTrack > 0.121) issues.push("头衔字距过大，会缺笔");
+
+  const usable = faceWidthCqw(spec);
+  const name = (profile.name || "").trim();
+  if (name && !t.nameVertical && lineWidthCqw(name, t.nameSize, t.nameTrack) > usable) {
+    issues.push("姓名超出版宽");
+  }
+  for (const row of design.top) {
+    if (lineWidthCqw(row.label, t.mastheadSize, t.mastheadTrack) > usable) issues.push("上排超出版宽");
+  }
+  const underLine = design.under.map((x) => x.label).join("  ·  ");
+  if (underLine && lineWidthCqw(underLine, t.roleSize, t.roleTrack) > usable) {
+    issues.push("姓名下超出版宽");
+  }
+  if (spec.copy.contactStyle === "stack") {
+    for (const c of design.contacts) {
+      if (lineWidthCqw(c.value, t.contactSize) > usable) issues.push("底栏有一条超出版宽");
+    }
+  } else if (design.contacts.length) {
+    const gap = 1.6;
+    const used =
+      design.contacts.reduce((sum, c) => sum + lineWidthCqw(c.value, t.contactSize), 0) +
+      Math.max(0, design.contacts.length - 1) * gap;
+    if (used > usable + 0.05) issues.push("底栏一行超出版宽");
+  }
+
+  if (usedContentCqh(design, profile) > faceHeightCqh(spec)) {
+    issues.push("上排、姓名、头衔和底栏在 90×54 上叠在一起");
+  }
+  return [...new Set(issues)];
+}
+
 /** 底栏一行的占宽。拉丁字母按窄字估计，宁可少放一条，不许用省略号。 */
 export function lineWidthCqw(text, sizeCqw, trackEm = 0.06) {
   let w = 0;

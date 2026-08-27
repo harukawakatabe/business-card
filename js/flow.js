@@ -141,16 +141,10 @@ function folioPage(scheme) {
   return null;
 }
 
-function folioMarkup(page, waiting) {
-  let title = page.title;
-  let wait = "";
-  if (waiting && title.endsWith("…")) {
-    title = title.slice(0, -1);
-    wait = `<span class="folio-dots" aria-hidden="true"></span>`;
-  }
+function folioMarkup(page) {
   return `<div class="folio-leaf"><p class="folio-title" data-leaf="${page.id}">${escapeHtml(
-    title,
-  )}${wait}</p></div>`;
+    page.title,
+  )}</p></div>`;
 }
 
 function renderCraft(scheme) {
@@ -164,10 +158,8 @@ function renderCraft(scheme) {
     return;
   }
   const current = root.querySelector(".folio-title");
-  const same = current?.dataset.leaf === page.id;
-  const hasDots = Boolean(root.querySelector(".folio-dots"));
-  if (same && hasDots === waiting) return;
-  root.innerHTML = folioMarkup(page, waiting);
+  if (current?.dataset.leaf === page.id) return;
+  root.innerHTML = folioMarkup(page);
 }
 
 function renderPick(strategy) {
