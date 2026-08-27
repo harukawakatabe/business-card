@@ -103,6 +103,13 @@ button {
   letter-spacing: 0.04em;
 }
 
+a.btn {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  cursor: pointer;
+}
+
 .btn:hover {
   background: var(--ink);
   color: var(--paper);

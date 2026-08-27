@@ -351,5 +351,43 @@ for (const [i, g] of garbage.entries()) {
   }
 }
 
+// 7. 产品版：档案标题、vCard、90×54mm @300dpi
+{
+  const { blankArchive, newScheme, questionsFilled, schemeTitle, toComposeState } = await import("./js/archive.js");
+  const { buildVCard, PNG_W, PNG_H } = await import("./js/export.js");
+  if (PNG_W !== 1063 || PNG_H !== 638) bad(`PNG 尺寸应为 1063×638，实际 ${PNG_W}×${PNG_H}`);
+
+  const empty = newScheme();
+  if (questionsFilled(empty) !== 0) bad("空方案问询数应为 0");
+  if (schemeTitle(empty) !== "未命名相遇") bad(`空方案标题: ${schemeTitle(empty)}`);
+
+  const filled = newScheme({ scene: "visit", purpose: "deal", audience: "client", stage: "employed" });
+  if (questionsFilled(filled) !== 4) bad("四问填完应为 4");
+  if (!schemeTitle(filled).includes("拜访")) bad(`方案标题缺场合: ${schemeTitle(filled)}`);
+
+  const archive = blankArchive();
+  archive.profile = { ...EMPTY_PROFILE, ...DEMO.profile };
+  archive.schemes = [filled];
+  archive.activeId = filled.id;
+  const st = toComposeState(archive);
+  if (st.profile.name !== DEMO.profile.name) bad("档案人物料没进 compose 状态");
+  if (st.scene !== "visit") bad("当前方案没进 compose 状态");
+
+  const vcf = buildVCard(DEMO.profile, { showOrg: true, pitch: "把合作推进到下一步。" });
+  if (!vcf.startsWith("BEGIN:VCARD")) bad("vCard 缺 BEGIN");
+  if (!vcf.includes("FN:陈予安")) bad("vCard 缺姓名");
+  if (!vcf.includes("N:陈;予安;;;")) bad(`vCard 姓名拆分不对: ${vcf}`);
+  if (!vcf.includes("ORG:北境咨询")) bad("vCard 缺组织");
+  if (!vcf.includes("微信 chenyuan_biz")) bad("vCard 微信应写进 NOTE");
+  if (!vcf.includes("END:VCARD")) bad("vCard 缺 END");
+
+  const hidden = buildVCard(DEMO.profile, { showOrg: false });
+  if (hidden.includes("ORG:")) bad("藏组织时 vCard 仍有 ORG");
+
+  const nasty = buildVCard({ ...EMPTY_PROFILE, name: "测;试", company: "A,B", wechat: "x\\y" }, { showOrg: true });
+  if (nasty.includes("FN:测;试") && !nasty.includes("FN:测\\;试")) bad("vCard 分号未转义");
+  if (!nasty.includes("FN:测\\;试")) bad("vCard 分号转义形式不对");
+}
+
 console.log(fail ? `\n${fail} 处问题` : "\n全部通过");
 process.exit(fail ? 1 : 0);
