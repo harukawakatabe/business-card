@@ -15,7 +15,7 @@ import {
 } from "./data.js";
 import { briefContext, compose } from "./strategy.js";
 import { designCard } from "./design.js";
-import { briefNodes } from "./brief.js";
+import { briefRows } from "./brief.js";
 import { PRESETS, sanitizeSpec } from "./style-spec.js";
 import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
@@ -29,8 +29,15 @@ const FIELDS = [
   ["stage", STAGES],
 ];
 
+const CRAFT_STEPS = [
+  { id: "read", title: "顾问阅读", hint: "读这场相遇和你的资历", jump: "" },
+  { id: "brief", title: "设计稿已出", hint: "什么字上卡、为什么不上", jump: "brief-sheet" },
+  { id: "styles", title: "三版视觉", hint: "十八套色系里抽三套来做", jump: "candidates" },
+];
+
 let archive = loadArchive();
 let busy = false;
+let phase = "idle";
 let note = { text: "", error: false };
 
 function ensureActive() {
@@ -128,6 +135,37 @@ function renderRail() {
     .join("");
 }
 
+function craftState(stepId, scheme) {
+  const order = CRAFT_STEPS.map((s) => s.id);
+  const idx = order.indexOf(stepId);
+  const now = order.indexOf(phase);
+  if (phase !== "idle") {
+    if (now === idx) return "now";
+    if (now > idx) return "done";
+    return "wait";
+  }
+  const hasBrief = Boolean(scheme.brief) || Boolean(scheme.candidates.length);
+  const hasStyles = Boolean(scheme.candidates.length);
+  if (stepId === "read") return hasBrief || hasStyles ? "done" : "wait";
+  if (stepId === "brief") return hasBrief ? "done" : "wait";
+  return hasStyles ? "done" : "wait";
+}
+
+function renderCraft(scheme) {
+  document.getElementById("craft").innerHTML = CRAFT_STEPS.map((step) => {
+    const state = craftState(step.id, scheme);
+    const jump = state === "done" && step.jump;
+    const mark = state === "done" ? "✓" : "";
+    return `<li class="craft-step is-${state}${jump ? " is-jump" : ""}">
+        <button type="button" data-craft="${step.id}" ${jump ? "" : "disabled"}>
+          <span class="craft-dot" aria-hidden="true">${mark}</span>
+          <b>${escapeHtml(step.title)}</b>
+          <small>${escapeHtml(step.hint)}</small>
+        </button>
+      </li>`;
+  }).join("");
+}
+
 function renderPick(strategy) {
   const scheme = ensureActive();
   const goNote = document.getElementById("go-note");
@@ -141,6 +179,8 @@ function renderPick(strategy) {
     goNote.textContent = "答完上面四问，点「生成这份身份」。没有 key 也会出规则草稿和三套内置视觉。";
   }
   goNote.classList.toggle("is-error", note.error);
+
+  renderCraft(scheme);
 
   const draw = document.getElementById("palette-draw");
   if (scheme.paletteDraw?.length) {
@@ -167,28 +207,16 @@ function renderPick(strategy) {
     })
     .join("");
 
-  const reviewRoot = document.getElementById("review");
-  if (scheme.brief || scheme.candidates.length) {
-    const nodes = briefNodes(strategy.brief, strategy.stance.label);
-    const checked = nodes.filter((n) => scheme.review?.[n.id]).length;
-    reviewRoot.innerHTML =
-      `<div class="q-kicker">核对清单</div>` +
-      `<p class="hint">设计稿拆成节点，一项一项看过再打勾。已核 ${checked}/${nodes.length}。</p>` +
-      nodes
-        .map((n) => {
-          const on = scheme.review?.[n.id] ? " is-on" : "";
-          const mark = scheme.review?.[n.id] ? "checked" : "";
-          return `<label class="review-item${on}">
-            <input type="checkbox" data-review="${n.id}" ${mark} />
-            <span><b>${escapeHtml(n.title)}</b>${escapeHtml(n.value)}${
-              n.why ? `<em>${escapeHtml(n.why)}</em>` : ""
-            }</span>
-          </label>`;
-        })
-        .join("");
-  } else {
-    reviewRoot.innerHTML = "";
-  }
+  const brief = strategy.brief;
+  const rows = briefRows(brief)
+    .map(
+      ([k, v, why]) =>
+        `<div class="sheet-row"><b>${k}</b><span>${escapeHtml(v)}${why ? `<em>${escapeHtml(why)}</em>` : ""}</span></div>`,
+    )
+    .join("");
+  document.getElementById("brief-sheet").innerHTML = scheme.brief || scheme.candidates.length
+    ? `<div class="sheet-read">${escapeHtml(brief.read)}<span>立场 ${escapeHtml(strategy.stance.label)}</span></div>${rows}`
+    : "";
 
   document.getElementById("cards").innerHTML = cardPair(strategy, archive.profile);
 
@@ -236,6 +264,7 @@ async function generate() {
     return;
   }
   busy = true;
+  phase = "read";
   note = { text: "顾问在读这场相遇和你的资历…", error: false };
   render({ skipInputs: true });
 
@@ -243,16 +272,21 @@ async function generate() {
   const ctx = briefContext(composeState);
   try {
     scheme.brief = await requestBrief(ctx);
-    scheme.review = {};
+    phase = "brief";
     note = { text: "设计稿已出，接着出三版视觉…", error: false };
     persist();
     render({ skipInputs: true });
   } catch (err) {
     scheme.brief = null;
+    phase = "brief";
     note = { text: `${err.message || "设计稿写不出来"}，先用规则草稿继续视觉。`, error: true };
+    render({ skipInputs: true });
   }
 
   const identity = compose(toComposeState(archive, scheme));
+  phase = "styles";
+  persist();
+  render({ skipInputs: true });
   try {
     const drawn = pickPaletteFamilies(3);
     scheme.paletteDraw = drawn.map((f) => f.id);
@@ -263,18 +297,16 @@ async function generate() {
     );
     scheme.candidates = specs;
     scheme.styleSpec = specs[0] || null;
-    scheme.review = {};
     note = {
       text: note.error
         ? `${note.text} 视觉已出。本轮色系 ${drawn.map((f) => f.label).join("、")}。`
-        : `三版已出（${drawn.map((f) => f.label).join("、")}）。点一版采纳，再把下面的核对清单一项项打勾。`,
+        : `三版已出（${drawn.map((f) => f.label).join("、")}）。点一版采纳。`,
       error: note.error,
     };
   } catch (err) {
     scheme.candidates = fallbackTrio();
     scheme.styleSpec = scheme.candidates[0];
     scheme.paletteDraw = [];
-    scheme.review = {};
     note = {
       text: `${err.message || "视觉出不来"}，改用三套内置预设。点一版即可导出。`,
       error: true,
@@ -284,6 +316,7 @@ async function generate() {
   scheme.updatedAt = Date.now();
   persist();
   busy = false;
+  phase = "idle";
   render({ skipInputs: true });
   document.getElementById("pick").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -380,14 +413,12 @@ function bind() {
     note = { text: "", error: false };
     render();
   });
-  document.getElementById("review").addEventListener("change", (event) => {
-    const box = event.target.closest("[data-review]");
-    if (!box) return;
-    const scheme = ensureActive();
-    scheme.review = { ...(scheme.review || {}), [box.dataset.review]: box.checked };
-    scheme.updatedAt = Date.now();
-    persist();
-    render({ skipInputs: true });
+  document.getElementById("craft").addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-craft]");
+    if (!btn || btn.disabled) return;
+    const step = CRAFT_STEPS.find((s) => s.id === btn.dataset.craft);
+    const target = step?.jump && document.getElementById(step.jump);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.getElementById("candidates").addEventListener("click", (event) => {
     const btn = event.target.closest("[data-cand]");

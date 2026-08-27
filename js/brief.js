@@ -346,29 +346,3 @@ export function briefRows(brief) {
     ["不上卡", brief.omitted.map((o) => `${o.label}（${o.reason}）`).join("；") || "无", ""],
   ];
 }
-
-/** 设计稿拆成可逐项打勾的节点（核对清单）。 */
-export function briefNodes(brief, stanceLabel) {
-  const ids = ["masthead", "name", "under", "contacts", "back", "omitted"];
-  const nodes = briefRows(brief).map(([title, value, why], i) => ({
-    id: ids[i],
-    title,
-    value,
-    why: why || "",
-  }));
-  nodes.push({
-    id: "stance",
-    title: "立场",
-    value: stanceLabel || "",
-    why: brief.stanceWhy || "",
-  });
-  if (brief.offstage?.length) {
-    nodes.push({
-      id: "offstage",
-      title: "私下",
-      value: brief.offstage.join(" "),
-      why: "不上卡，只给你自己看",
-    });
-  }
-  return nodes;
-}

@@ -29,7 +29,6 @@ export function newScheme(over = {}) {
     brief: null,
     styleSpec: null,
     candidates: [],
-    review: {},
     paletteDraw: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -88,7 +87,6 @@ export function loadArchive() {
           candidates: Array.isArray(s.candidates)
             ? s.candidates.map((c, i) => sanitizeSpec(c, c?.id || `saved-${i}`))
             : [],
-          review: s.review && typeof s.review === "object" ? s.review : {},
           paletteDraw: Array.isArray(s.paletteDraw) ? s.paletteDraw : [],
         }))
       : [];
