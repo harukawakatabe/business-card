@@ -32,9 +32,19 @@
       </aside>
 
       <section class="flow-main">
+        <section class="hero">
+          <p class="q-kicker">四问 · 设计稿 · 三版视觉</p>
+          <h2 class="hero-title">把你是谁，收进一张 90×54 的卡。</h2>
+          <p class="hero-sub">答四个问题，顾问替你写设计稿、出三版能直接付印的视觉。同一个人，每一场相遇各有各的递法。</p>
+          <div class="hero-actions">
+            <button class="btn chop big" type="button" id="btn-start">开始做我的</button>
+            <button class="btn" type="button" id="btn-demo-hero">先看一份演示</button>
+          </div>
+          <div class="hero-cards" id="hero-cards" aria-hidden="true"></div>
+        </section>
+
         <p class="status" id="status"></p>
 
-        <p class="scene-read" id="scene-read"></p>
         <article class="q" id="q-scene">
           <div class="q-kicker">01 场合</div>
           <h2>在什么场合递出去</h2>
@@ -131,7 +141,8 @@
 
         <div class="folio-stage">
           <div class="go-row">
-            <button class="btn chop" type="button" id="btn-go">生成这份身份</button>
+            <p class="scene-read" id="scene-read"></p>
+            <button class="btn chop big" type="button" id="btn-go">生成这份身份</button>
             <p class="designer-note" id="go-note"></p>
           </div>
           <nav class="folio" id="craft" aria-label="制作过程" aria-live="polite"></nav>

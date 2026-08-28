@@ -99,10 +99,6 @@ button {
   align-items: center;
 }
 
-.scene-read {
-  display: none;
-}
-
 .btn {
   border: 1px solid var(--ink);
   background: transparent;

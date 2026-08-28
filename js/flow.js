@@ -34,6 +34,13 @@ const FOLIO = [
   { id: "done", title: "三版已出。点一版采纳。" },
 ];
 
+/** 首屏示例：同一位演示人物，三场相遇各出一张卡，讲「一份物料 · 多场相遇」。 */
+const HERO_SCENES = [
+  { scene: "visit", purpose: "deal", audience: "client", caption: "客户拜访 · 递给甲方" },
+  { scene: "salon", purpose: "network", audience: "peer", caption: "沙龙酒会 · 递给同行" },
+  { scene: "pitch", purpose: "fundraise", audience: "investor", caption: "路演现场 · 递给投资人" },
+];
+
 let archive = loadArchive();
 let busy = false;
 let phase = "idle";
@@ -66,6 +73,28 @@ function fallbackTrio() {
 function composeNow() {
   const scheme = ensureActive();
   return compose(toComposeState(archive, scheme));
+}
+
+function renderHero() {
+  const root = document.getElementById("hero-cards");
+  if (!root || root.dataset.ready) return;
+  const profile = { ...EMPTY_PROFILE, ...DEMO.profile };
+  root.innerHTML = HERO_SCENES.map(({ scene, purpose, audience, caption }) => {
+    const strategy = compose({
+      scene,
+      purpose,
+      audience,
+      stage: "employed",
+      profile,
+      custom: {},
+      edits: {},
+    });
+    return `<figure class="hero-item">
+      <div class="card-frame">${cardMarkup(strategy, profile, "front", strategy.design)}</div>
+      <figcaption>${escapeHtml(caption)}</figcaption>
+    </figure>`;
+  }).join("");
+  root.dataset.ready = "1";
 }
 
 function renderChipGroup(field, items) {
@@ -349,7 +378,10 @@ function exportVcf() {
 
 function bind() {
   document.getElementById("btn-go").addEventListener("click", generate);
-  document.getElementById("btn-demo").addEventListener("click", () => {
+  document.getElementById("btn-start").addEventListener("click", () => {
+    document.getElementById("q-scene").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  const fillDemo = () => {
     const scheme = ensureActive();
     archive.profile = { ...EMPTY_PROFILE, ...DEMO.profile };
     Object.assign(scheme, {
@@ -361,6 +393,11 @@ function bind() {
     });
     persist();
     render();
+  };
+  document.getElementById("btn-demo").addEventListener("click", fillDemo);
+  document.getElementById("btn-demo-hero").addEventListener("click", () => {
+    fillDemo();
+    generate();
   });
   document.getElementById("btn-new").addEventListener("click", () => {
     const s = newScheme();
@@ -423,4 +460,5 @@ function bind() {
 }
 
 bind();
+renderHero();
 render();
