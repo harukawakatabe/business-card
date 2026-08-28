@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="cedar">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>商业身份 · 工作室</title>
+    <script src="js/theme-boot.js"></script>
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
@@ -13,6 +14,10 @@
         <span class="en">Identity Atelier</span>
       </div>
       <div class="top-actions">
+        <div class="theme-switch" role="radiogroup" aria-label="界面主题">
+          <button type="button" role="radio" aria-checked="true" data-theme-set="cedar">雪松林</button>
+          <button type="button" role="radio" aria-checked="false" data-theme-set="paper">纸墨</button>
+        </div>
         <a class="btn ghost" href="./">产品版</a>
         <button class="btn ghost" type="button" id="btn-demo">填一份演示</button>
         <button class="btn ghost" type="button" id="btn-reset">清空</button>
@@ -22,6 +27,7 @@
 
     <main class="layout">
       <section class="inquiry">
+        <div class="encounter">
         <article class="q" id="q-scene">
           <div class="q-kicker">01</div>
           <h2>在什么场合递出去</h2>
@@ -61,6 +67,7 @@
             <input type="text" placeholder="你的阶段" maxlength="40" />
           </div>
         </article>
+        </div>
 
         <article class="q" id="q-profile">
           <div class="q-kicker">05</div>
@@ -174,9 +181,11 @@
           <div class="candidates" id="candidates"></div>
         </section>
 
-        <p class="card-label" id="stance-label"></p>
-        <div class="stance-row" id="stances"></div>
-        <div class="cards" id="cards"></div>
+        <div class="stage">
+          <p class="card-label" id="stance-label"></p>
+          <div class="stance-row" id="stances"></div>
+          <div class="cards" id="cards"></div>
+        </div>
         <div class="export-row">
           <button class="btn chop" type="button" id="btn-png-front">下载正面 PNG</button>
           <button class="btn chop" type="button" id="btn-png-back">下载背面 PNG</button>

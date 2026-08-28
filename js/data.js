@@ -45,7 +45,7 @@ export const STANCES = {
 
 /**
  * 名片色系模板：给第二步的视觉设计师当灵感，不是封闭名单。
- * 雪松绿只是 Web 界面的色谱，不锁名片。用户不选 = 三版必须换色相。
+ * 雪松绿 / 纸墨只是 Web 界面的色谱，不锁名片。用户不选 = 三版必须换色相。
  */
 export const PALETTE_FAMILIES = [
   { id: "ink-gold", label: "墨金", blurb: "近黑底，氧化金点缀", swatches: ["#100e0c", "#2a241c", "#f4ead7", "#c4a574"] },

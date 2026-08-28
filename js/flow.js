@@ -20,6 +20,7 @@ import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { loadArchive, newScheme, questionsFilled, saveArchive, schemeTitle, toComposeState } from "./archive.js";
 import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
+import { bindThemeSwitcher } from "./theme.js";
 
 const FIELDS = [
   ["scene", SCENES],
@@ -230,6 +231,15 @@ function render(opts = {}) {
   if (strategy.completeness.readyToPrint) bits.push("可以导出");
   document.getElementById("status").textContent = bits.join(" · ");
 
+  const names = [
+    strategy.scene?.label,
+    strategy.purpose?.label,
+    strategy.audience?.label,
+    strategy.stage?.label,
+  ].filter(Boolean);
+  const sceneRead = document.getElementById("scene-read");
+  if (sceneRead) sceneRead.textContent = names.join(" · ");
+
   document.getElementById("btn-go").disabled = busy || questionsFilled(scheme) < 4;
   document.getElementById("btn-go").textContent = busy ? "在做这份身份…" : "生成这份身份";
 
@@ -413,5 +423,6 @@ function bind() {
   document.getElementById("btn-vcf").addEventListener("click", exportVcf);
 }
 
+bindThemeSwitcher();
 bind();
 render();

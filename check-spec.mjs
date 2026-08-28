@@ -436,6 +436,15 @@ for (const [i, g] of garbage.entries()) {
   const cardCss = readFileSync(new URL("./css/styles.css", import.meta.url), "utf8");
   if (/text-overflow:\s*ellipsis/.test(cardCss)) bad("名片 CSS 不许用省略号截断文字");
   if (/line-height:\s*1\.12/.test(cardCss)) bad("姓名行高 1.12 会裁掉衬线体上下");
+  if (!cardCss.includes("--paper: #f1f4f1")) bad("默认主题应保留雪松林纸色");
+  if (!cardCss.includes('[data-theme="paper"]')) bad("应有纸墨主题");
+  if (!cardCss.includes("#f4f1ea")) bad("纸墨主题应有牙白纸");
+
+  const { DEFAULT_THEME, normalizeTheme, THEME_KEY } = await import("./js/theme.js");
+  if (DEFAULT_THEME !== "cedar") bad("默认主题必须是雪松林，以免旧界面被换掉");
+  if (normalizeTheme("nope") !== "cedar") bad("未知主题应回落到雪松林");
+  if (normalizeTheme("paper") !== "paper") bad("纸墨主题识别失败");
+  if (THEME_KEY !== "identity.theme.v1") bad("主题存储键变了，旧选择会丢");
 
   const four = [
     { key: "phone", label: "电话", value: "138 0013 8000" },

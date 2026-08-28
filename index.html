@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="cedar">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>商业身份</title>
+    <script src="js/theme-boot.js"></script>
     <link rel="stylesheet" href="css/styles.css" />
     <link rel="stylesheet" href="css/flow.css" />
   </head>
@@ -14,6 +15,10 @@
         <span class="en">一份物料 · 多场相遇</span>
       </div>
       <div class="top-actions">
+        <div class="theme-switch" role="radiogroup" aria-label="界面主题">
+          <button type="button" role="radio" aria-checked="true" data-theme-set="cedar">雪松林</button>
+          <button type="button" role="radio" aria-checked="false" data-theme-set="paper">纸墨</button>
+        </div>
         <a class="btn ghost" href="studio.html">工作室</a>
         <button class="btn ghost" type="button" id="btn-demo">填一份演示</button>
       </div>
@@ -34,7 +39,9 @@
       <section class="flow-main">
         <p class="status" id="status"></p>
 
-        <article class="q" id="q-scene">
+        <div class="encounter">
+          <p class="scene-read" id="scene-read"></p>
+          <article class="q" id="q-scene">
           <div class="q-kicker">01 场合</div>
           <h2>在什么场合递出去</h2>
           <div class="chips" data-field="scene"></div>
@@ -58,6 +65,7 @@
           <div class="chips" data-field="stage"></div>
           <div class="other" data-other="stage"><input type="text" placeholder="你的阶段" maxlength="40" /></div>
         </article>
+        </div>
 
         <article class="q" id="q-profile">
           <div class="q-kicker">05 你是谁</div>
