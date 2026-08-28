@@ -169,6 +169,7 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
   const decor = Array.isArray(src.decor)
     ? src.decor.map(sanitizeDecor).filter(Boolean).slice(0, 4)
     : [];
+  const q = src.qr && typeof src.qr === "object" ? src.qr : {};
 
   const spec = {
     id: text(src.id, 24, fallbackId),
@@ -217,6 +218,12 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
       roleLeading: 1.42,
     },
     decor,
+    // 二维码位是「留不留位」的设计决定；用户没贴图时前端不渲染，留位零成本。
+    qr: {
+      show: bool(q.show),
+      corner: pick(q.corner, ["br", "bl"], "br"),
+      size: num(q.size, 13, 26, 20),
+    },
     copy: {
       maxUnder: num(c.maxUnder, 1, 3, 2),
       maxContacts: num(c.maxContacts, 1, 4, 3),
@@ -347,6 +354,7 @@ export function specToVars(spec, flip = false) {
     `--role-color:${resolveColor(spec, t.roleColor, spec.palette.muted)}`,
     `--contact-size:${t.contactSize}cqw`,
     `--contact-justify:${ALIGN_ITEMS[t.contactAlign]}`,
+    `--qr-size:${spec.qr.size}cqw`,
   ].join(";");
 }
 
@@ -505,7 +513,7 @@ export function describeSpec(spec) {
   return {
     layout: `${spec.layoutName} · ${ALIGN_ZH[spec.frame.align]}，主体${ANCHOR_ZH[spec.frame.anchor]}${
       t.nameVertical ? `，姓名沿${SIDE_ZH[t.nameSide]}侧竖排` : ""
-    }`,
+    }${spec.qr.show ? `，${CORNER_ZH[spec.qr.corner]}留二维码位` : ""}`,
     paper: spec.paper,
     palette: `底 ${p.bg}${p.bgMode !== "flat" ? ` → ${p.bg2}` : ""}　字 ${p.fg}　次 ${p.muted}　强调 ${p.accent}`,
     type: [
@@ -563,6 +571,7 @@ const RAW_PRESETS = {
     },
     decor: [{ kind: "edge", side: "left", size: 6.4, color: "accent", gradient: true }],
     copy: { maxUnder: 2, maxContacts: 3, contactStyle: "row" },
+    qr: { show: true, corner: "br", size: 20 },
   },
   ambitious: {
     id: "ambitious",
@@ -598,6 +607,7 @@ const RAW_PRESETS = {
     },
     decor: [{ kind: "edge", side: "bottom", size: 30, color: "accent", fade: true, opacity: 0.42 }],
     copy: { maxUnder: 1, maxContacts: 1, contactStyle: "bare" },
+    qr: { show: true, corner: "br", size: 22 },
   },
   quiet: {
     id: "quiet",

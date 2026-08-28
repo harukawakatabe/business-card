@@ -20,6 +20,7 @@ import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { loadArchive, newScheme, questionsFilled, saveArchive, schemeTitle, toComposeState } from "./archive.js";
 import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
+import { imageFromClipboard, ingestImage } from "./image-in.js";
 
 const FIELDS = [
   ["scene", SCENES],
@@ -196,6 +197,8 @@ function renderPick(strategy) {
   const goNote = document.getElementById("go-note");
   if (note.error && note.text) {
     goNote.textContent = note.text;
+  } else if (strategy.design.spec.qr?.show && !archive.profile.qrImage) {
+    goNote.textContent = "这套设计留了二维码位：在「你是谁」里贴上二维码图，它会印到正面。";
   } else {
     goNote.textContent = "";
   }
@@ -240,6 +243,15 @@ function renderPick(strategy) {
   document.getElementById("btn-vcf").disabled = !vcfOk;
 }
 
+function renderQr() {
+  const slot = document.getElementById("qr-slot");
+  if (!slot) return;
+  slot.innerHTML = archive.profile.qrImage
+    ? `<img alt="" src="${archive.profile.qrImage}" />`
+    : "<span>贴二维码图</span>";
+  document.getElementById("btn-qr-clear").hidden = !archive.profile.qrImage;
+}
+
 function render(opts = {}) {
   const scheme = ensureActive();
   const strategy = composeNow();
@@ -272,6 +284,7 @@ function render(opts = {}) {
   document.getElementById("btn-go").textContent = busy ? "在做这份身份…" : "生成这份身份";
 
   renderRail();
+  renderQr();
   renderPick(strategy);
 }
 
@@ -335,6 +348,16 @@ async function generate() {
   phase = "idle";
   render({ skipInputs: true });
   document.getElementById("craft").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function acceptQrImage(file) {
+  try {
+    archive.profile.qrImage = await ingestImage(file);
+    note = { text: "", error: false };
+  } catch {
+    note = { text: "二维码图读不出来，换一张白底原图试试。", error: true };
+  }
+  render({ skipInputs: true });
 }
 
 async function exportPng(face) {
@@ -453,6 +476,25 @@ function bind() {
       render({ skipInputs: true });
     });
   }
+  document.getElementById("btn-qr").addEventListener("click", () => {
+    document.getElementById("in-qr").click();
+  });
+  document.getElementById("in-qr").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    await acceptQrImage(file);
+  });
+  document.getElementById("qr-slot").addEventListener("paste", async (event) => {
+    event.preventDefault();
+    const file = imageFromClipboard(event.clipboardData);
+    if (file) await acceptQrImage(file);
+  });
+  document.getElementById("btn-qr-clear").addEventListener("click", () => {
+    archive.profile.qrImage = "";
+    persist();
+    render({ skipInputs: true });
+  });
   document.getElementById("btn-png-front").addEventListener("click", () => exportPng("front"));
   document.getElementById("btn-png-back").addEventListener("click", () => exportPng("back"));
   document.getElementById("btn-pdf").addEventListener("click", exportPdf);

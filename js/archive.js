@@ -104,7 +104,7 @@ export function saveArchive(archive) {
     try {
       const slim = {
         ...archive,
-        profile: { ...archive.profile, portrait: "" },
+        profile: { ...archive.profile, portrait: "", qrImage: "" },
       };
       localStorage.setItem(ARCHIVE_KEY, JSON.stringify(slim));
     } catch {

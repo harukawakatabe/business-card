@@ -15,6 +15,15 @@ export function faceWidthCqw(spec) {
 }
 
 /**
+ * 二维码贴上后占掉底栏一角的宽度，和 CSS 的让位 margin 同一刻度。
+ * 没贴图时前端不渲染，排版约束也当它不存在。
+ */
+export function qrReserveCqw(spec, profile = {}) {
+  if (!spec.qr?.show || !profile?.qrImage) return 0;
+  return spec.qr.size + 5;
+}
+
+/**
  * 90×54 上 padding 百分比相对的是宽度，换成 cqh 要乘宽高比。
  * 用来检查「这套字号 + 这些条目」会不会在卡面上叠在一起。
  */
@@ -82,15 +91,16 @@ export function printIssues(design, profile = {}) {
     issues.push("姓名下超出版宽");
   }
   if (spec.copy.contactStyle === "stack") {
+    const usableBottom = usable - qrReserveCqw(spec, profile);
     for (const c of design.contacts) {
-      if (lineWidthCqw(c.value, t.contactSize) > usable) issues.push("底栏有一条超出版宽");
+      if (lineWidthCqw(c.value, t.contactSize) > usableBottom) issues.push("底栏有一条超出版宽");
     }
   } else if (design.contacts.length) {
     const gap = 1.6;
     const used =
       design.contacts.reduce((sum, c) => sum + lineWidthCqw(c.value, t.contactSize), 0) +
       Math.max(0, design.contacts.length - 1) * gap;
-    if (used > usable + 0.05) issues.push("底栏一行超出版宽");
+    if (used > usable - qrReserveCqw(spec, profile) + 0.05) issues.push("底栏一行超出版宽");
   }
 
   if (usedContentCqh(design, profile) > faceHeightCqh(spec)) {
@@ -113,11 +123,11 @@ export function lineWidthCqw(text, sizeCqw, trackEm = 0.06) {
  * 按这套规格的左右留白和字号，决定底栏实际能印几条。
  * 条目上限只是上限；一行排不下就从后面拿掉，记进不上卡。
  */
-export function fitPrintedContacts(contacts, spec) {
+export function fitPrintedContacts(contacts, spec, reserveCqw = 0) {
   const list = Array.isArray(contacts) ? contacts.slice(0, spec.copy.maxContacts) : [];
   const rest = Array.isArray(contacts) ? contacts.slice(spec.copy.maxContacts) : [];
   const size = spec.type.contactSize;
-  const usable = faceWidthCqw(spec);
+  const usable = faceWidthCqw(spec) - reserveCqw;
   const gap = 1.6;
   const kept = [];
   const overflow = [...rest];
@@ -211,7 +221,7 @@ export function designCard(identity, state, override) {
     spec,
   );
   const under = fittedUnder.kept.map((label) => ({ label }));
-  const fitted = fitPrintedContacts(brief.contacts, spec);
+  const fitted = fitPrintedContacts(brief.contacts, spec, qrReserveCqw(spec, profile));
   const contacts = fitted.kept;
 
   // 设计稿主动拿掉的，加上被这套版面挤掉的，一起对用户交代。

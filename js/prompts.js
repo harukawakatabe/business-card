@@ -72,6 +72,11 @@ export function buildPrompts(state, strategy) {
       { left: "左对齐", center: "居中", right: "右对齐" }[t.contactAlign]
     }）：${bottom}`,
     t.ornament ? `- 姓名与标签之间加一个细菱形分隔饰件。` : "",
+    spec.qr?.show
+      ? `- 正面${spec.qr.corner === "bl" ? "左下" : "右下"}角留一块约版宽 ${spec.qr.size.toFixed(
+          0,
+        )}% 的白底方形二维码贴图区：只留干净的白色空位，不要生成任何伪二维码图案。`
+      : "",
     `背面：一句定位「${strategy.pitch}」${backTags ? `；技能/履历标签：${backTags}` : ""}。CTA：${strategy.cta}。背面沿用同一套色彩与纸面，侧边装饰镜像到另一侧。`,
     omitted ? `设计师决定不上卡：${omitted}` : "",
     `背景必须被设计，不要纯色平涂到底。文字必须可读，主文字与底色对比要足。`,
@@ -104,6 +109,11 @@ export function buildPrompts(state, strategy) {
     `- Tags under name (middots, no app chips): ${under}`,
     `- Footer contacts (${spec.copy.contactStyle}, ${t.contactAlign}-aligned): ${bottom}`,
     t.ornament ? `- Thin diamond divider between name and tags.` : "",
+    spec.qr?.show
+      ? `- Reserve a clean white square zone (~${spec.qr.size.toFixed(0)}% of card width) at the bottom-${
+          spec.qr.corner === "bl" ? "left" : "right"
+        } of the front for a WeChat QR sticker: leave it blank white, do NOT draw any fake QR pattern.`
+      : "",
     `Back: positioning line “${strategy.pitch}”${backTags ? `; tags: ${backTags}` : ""}. CTA: ${strategy.cta}. Same palette and paper, side decoration mirrored.`,
     omitted ? `Designer omitted: ${omitted}` : "",
     `The background MUST be designed, not a flat fill. Type must stay legible against the ground.`,

@@ -809,6 +809,88 @@ a.btn {
   z-index: 2;
 }
 
+/* 二维码位：白底托底保证深色卡上可扫；底栏按角让位（margin，分隔线一起缩）。 */
+.card-qr {
+  position: absolute;
+  z-index: 2;
+  width: var(--qr-size, 20cqw);
+  aspect-ratio: 1;
+  object-fit: contain;
+  padding: 1.4cqw;
+  background: #ffffff;
+  border-radius: 1cqw;
+  box-shadow: 0 0.6cqw 2.4cqw rgba(0, 0, 0, 0.2);
+}
+
+.card[data-qr="br"] .card-qr {
+  right: 5%;
+  bottom: 7%;
+}
+
+.card[data-qr="bl"] .card-qr {
+  left: 5%;
+  bottom: 7%;
+}
+
+.card[data-qr="br"] .z-bottom {
+  margin-right: calc(var(--qr-size, 20cqw) + 6cqw);
+}
+
+.card[data-qr="bl"] .z-bottom {
+  margin-left: calc(var(--qr-size, 20cqw) + 6cqw);
+}
+
+/* 贴图槽（二维码）：点击选图，聚焦后可直接 ⌘/Ctrl+V 粘贴。 */
+.qr-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.qr-slot {
+  flex: 0 0 auto;
+  width: 76px;
+  height: 76px;
+  border: 1px dashed var(--ink-faint);
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+}
+
+.qr-slot:focus {
+  border-color: var(--ink);
+  border-style: solid;
+}
+
+.qr-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qr-slot span {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  text-align: center;
+  padding: 6px;
+  line-height: 1.5;
+}
+
+.qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.qr-actions input[type="file"] {
+  display: none;
+}
+
 .back-kicker {
   font-size: 2.35cqw;
   letter-spacing: 0.26em;

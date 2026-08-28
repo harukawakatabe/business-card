@@ -24,6 +24,9 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
     face === "front" && strategy.showPortrait && profile.portrait
       ? `<img class="portrait" alt="" src="${profile.portrait}" />`
       : "";
+  // 二维码位只在用户真贴了图时渲染；没图时留位零成本，纸面不出现空框。
+  const qrOn = face === "front" && spec.qr?.show && Boolean(profile.qrImage);
+  const qr = qrOn ? `<img class="card-qr" alt="" src="${profile.qrImage}" />` : "";
   const top = design.top.map((x) => escapeHtml(x.label)).join("  ");
   const under = design.under.map((x) => escapeHtml(x.label)).join("  ·  ");
   const contacts = design.contacts.map((c) => `<span>${escapeHtml(c.value)}</span>`).join("");
@@ -33,7 +36,7 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
   const flip = face === "back";
   const open = `<article class="card${flip ? " is-back" : ""}" data-contact="${
     spec.copy.contactStyle
-  }" style="${specToVars(spec, flip)}">
+  }" data-qr="${qrOn ? spec.qr.corner : ""}" style="${specToVars(spec, flip)}">
     <div class="card-surface" aria-hidden="true">${decorHtml(spec, escapeHtml(design.monogram), flip)}</div>`;
 
   if (face === "back") {
@@ -58,6 +61,7 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
 
   return `${open}
     ${photo}
+    ${qr}
     <div class="card-face">
       ${t.nameVertical ? nameEl : ""}
       <div class="z-top">${top ? `<span class="masthead">${top}</span>` : "<span></span>"}</div>

@@ -107,6 +107,18 @@
               <label for="f-website">站点</label>
               <input id="f-website" data-profile="website" maxlength="60" />
             </div>
+            <div class="wide">
+              <label for="in-qr">微信二维码（可空，贴图后由设计稿决定怎么印）</label>
+              <div class="qr-row">
+                <div class="qr-slot" id="qr-slot" tabindex="0" contenteditable="plaintext-only" aria-label="二维码图片：点击上传，或聚焦后 Ctrl+V 粘贴"></div>
+                <div class="qr-actions">
+                  <button class="btn" type="button" id="btn-qr">上传图片</button>
+                  <button class="btn ghost" type="button" id="btn-qr-clear" hidden>去掉</button>
+                  <input id="in-qr" type="file" accept="image/*" />
+                </div>
+              </div>
+              <p class="hint">点击选图，或点一下格子再 ⌘/Ctrl+V 粘贴截图。用白底原图，别用暗色模式的截图。</p>
+            </div>
           </div>
           <details class="more">
             <summary>资历（不上卡，只判断分寸）</summary>

@@ -7,6 +7,7 @@ import { sanitizeSpec } from "./style-spec.js";
 import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
+import { imageFromClipboard, ingestImage } from "./image-in.js";
 
 const KEY = "identity.atelier.v1";
 const FIELDS = [
@@ -73,7 +74,7 @@ function persist() {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
     try {
-      const slim = { ...state, profile: { ...state.profile, portrait: "" } };
+      const slim = { ...state, profile: { ...state.profile, portrait: "", qrImage: "" } };
       localStorage.setItem(KEY, JSON.stringify(slim));
     } catch {
       /* quota */
@@ -101,6 +102,26 @@ function readPortrait(file) {
     };
     img.src = url;
   });
+}
+
+function renderQr() {
+  const slot = document.getElementById("qr-slot");
+  if (!slot) return;
+  slot.innerHTML = state.profile.qrImage
+    ? `<img alt="" src="${state.profile.qrImage}" />`
+    : "<span>贴二维码图</span>";
+  document.getElementById("btn-qr-clear").hidden = !state.profile.qrImage;
+}
+
+async function acceptQrImage(file) {
+  try {
+    state.profile.qrImage = await ingestImage(file);
+  } catch {
+    alert("二维码图读不出来，换一张白底原图试试。");
+    return;
+  }
+  persist();
+  render({ skipInputs: true });
 }
 
 function renderChipGroup(field, items) {
@@ -350,6 +371,7 @@ function render(opts = {}) {
   document.getElementById("print-sheet").innerHTML =
     `<div class="card-frame">${cardMarkup(strategy, state.profile, "front")}</div>` +
     `<div class="card-frame">${cardMarkup(strategy, state.profile, "back")}</div>`;
+  renderQr();
   document.getElementById("prompt-zh").textContent = prompts.zh;
   document.getElementById("prompt-en").textContent = prompts.en;
 
@@ -543,6 +565,25 @@ function bind() {
     state.profile.attachmentName = "";
     persist();
     render();
+  });
+
+  document.getElementById("btn-qr").addEventListener("click", () => {
+    document.getElementById("in-qr").click();
+  });
+  document.getElementById("in-qr").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) await acceptQrImage(file);
+  });
+  document.getElementById("qr-slot").addEventListener("paste", async (event) => {
+    event.preventDefault();
+    const file = imageFromClipboard(event.clipboardData);
+    if (file) await acceptQrImage(file);
+  });
+  document.getElementById("btn-qr-clear").addEventListener("click", () => {
+    state.profile.qrImage = "";
+    persist();
+    render({ skipInputs: true });
   });
 
   document.getElementById("btn-demo").addEventListener("click", () => {

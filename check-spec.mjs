@@ -11,6 +11,7 @@ import { briefContext, compose } from "./js/strategy.js";
 import { availableContacts, draftBrief, sanitizeBrief } from "./js/brief.js";
 import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw, printIssues } from "./js/design.js";
 import { buildPrompts } from "./js/prompts.js";
+import { cardMarkup } from "./js/render-card.js";
 import { DEMO, EMPTY_PROFILE, STANCES } from "./js/data.js";
 import { readFileSync } from "node:fs";
 
@@ -285,6 +286,39 @@ for (const [i, g] of garbage.entries()) {
   const s = compose(state);
   if (s.design.source !== "llm") bad("采纳规格后 source 应为 llm");
   auditSpec("adopted", s.design.spec);
+}
+
+// 5b. 二维码位：清洗器夹区间；贴了图才渲染；底栏必须让位
+{
+  const qrSpec = sanitizeSpec({ ...PRESETS.credible, qr: { show: true, corner: "middle", size: 999 } }, "qr");
+  if (qrSpec.qr.corner !== "br") bad("qr.corner 畸形值应回落 br");
+  if (qrSpec.qr.size !== 26) bad(`qr.size 应夹到 26，实得 ${qrSpec.qr.size}`);
+  if (sanitizeSpec({ qr: { show: "yes" } }, "qr2").qr.show !== false) bad("qr.show 应清洗成布尔");
+  if (sanitizeSpec({}, "qr3").qr.size !== 20) bad("qr.size 默认应为 20");
+
+  const withQr = { ...base, profile: { ...base.profile, qrImage: "data:image/png;base64,x" } };
+  const sQr = compose(withQr);
+  const frontQr = cardMarkup(sQr, withQr.profile, "front");
+  if (!frontQr.includes("card-qr") || !frontQr.includes('data-qr="br"')) bad("贴了二维码图，正面没渲染二维码位");
+  if (cardMarkup(sQr, withQr.profile, "back").includes("card-qr")) bad("背面不该渲染二维码位");
+  if (cardMarkup(sQr, base.profile, "front").includes("card-qr")) bad("没贴图不该渲染二维码");
+
+  const specQr = sanitizeSpec(
+    { ...PRESETS.credible, type: { ...PRESETS.credible.type, contactSize: 2.3 }, qr: { show: true, size: 26 } },
+    "qrfit",
+  );
+  const brief3 = sanitizeBrief(
+    { under: [{ label: "商务负责人" }], contacts: [{ key: "wechat" }, { key: "email" }, { key: "phone" }] },
+    briefContext(base),
+    "qr3c",
+  );
+  const stateB = { ...base, brief: brief3 };
+  const dNo = designCard(compose(stateB), stateB, specQr);
+  const dQr = designCard(compose(withQr), withQr, specQr);
+  if (dNo.contacts.length < 3) bad(`对照组应排出 3 条联系，实得 ${dNo.contacts.length}`);
+  if (dQr.contacts.length >= dNo.contacts.length) bad("贴二维码后底栏没有让位");
+  const issues = printIssues(dQr, withQr.profile);
+  if (issues.length) bad(`二维码让位后仍有印制问题: ${issues.join("；")}`);
 }
 
 // 6. 模型响应解析：Anthropic 的 tool_use 结构、缺字段、错误响应

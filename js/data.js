@@ -292,6 +292,7 @@ export const DEMO = {
     city: "上海",
     tags: "组织诊断, 增长策略",
     portrait: "",
+    qrImage: "",
     attachmentName: "",
   },
 };
@@ -313,6 +314,7 @@ export const EMPTY_PROFILE = {
   city: "",
   tags: "",
   portrait: "",
+  qrImage: "",
   attachmentName: "",
 };
 
