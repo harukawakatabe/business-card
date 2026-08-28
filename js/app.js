@@ -7,7 +7,6 @@ import { sanitizeSpec } from "./style-spec.js";
 import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
-import { bindThemeSwitcher } from "./theme.js";
 
 const KEY = "identity.atelier.v1";
 const FIELDS = [
@@ -589,7 +588,6 @@ function bind() {
   });
 }
 
-bindThemeSwitcher();
 bind();
 {
   const params = new URLSearchParams(location.search);

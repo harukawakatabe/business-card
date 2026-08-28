@@ -20,7 +20,6 @@ import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { loadArchive, newScheme, questionsFilled, saveArchive, schemeTitle, toComposeState } from "./archive.js";
 import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
-import { bindThemeSwitcher } from "./theme.js";
 
 const FIELDS = [
   ["scene", SCENES],
@@ -423,6 +422,5 @@ function bind() {
   document.getElementById("btn-vcf").addEventListener("click", exportVcf);
 }
 
-bindThemeSwitcher();
 bind();
 render();
