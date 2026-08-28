@@ -77,7 +77,9 @@ export function buildPrompts(state, strategy) {
           0,
         )}% 的白底方形二维码贴图区：只留干净的白色空位，不要生成任何伪二维码图案。`
       : "",
-    `背面：一句定位「${strategy.pitch}」${backTags ? `；技能/履历标签：${backTags}` : ""}。CTA：${strategy.cta}。背面沿用同一套色彩与纸面，侧边装饰镜像到另一侧。`,
+    strategy.backMode === "en"
+      ? `背面为英文版，与中文正面构成中英对照：小标「${strategy.backEn.kicker}」、英文名「${strategy.backEn.name}」${strategy.backEn.title ? `、头衔「${strategy.backEn.title}」` : ""}${strategy.backEn.cta ? `、CTA「${strategy.backEn.cta}」` : ""}。英文排版与正面同一套骨架，联系方式以英文标签重排，装饰镜像。`
+      : `背面：一句定位「${strategy.pitch}」${backTags ? `；技能/履历标签：${backTags}` : ""}。CTA：${strategy.cta}。背面沿用同一套色彩与纸面，侧边装饰镜像到另一侧。`,
     omitted ? `设计师决定不上卡：${omitted}` : "",
     `背景必须被设计，不要纯色平涂到底。文字必须可读，主文字与底色对比要足。`,
     `禁止：霓虹、赛博朋克、水印网站、二维码铺满、图标矩阵、人物全身、卡通。`,
@@ -114,7 +116,9 @@ export function buildPrompts(state, strategy) {
           spec.qr.corner === "bl" ? "left" : "right"
         } of the front for a WeChat QR sticker: leave it blank white, do NOT draw any fake QR pattern.`
       : "",
-    `Back: positioning line “${strategy.pitch}”${backTags ? `; tags: ${backTags}` : ""}. CTA: ${strategy.cta}. Same palette and paper, side decoration mirrored.`,
+    strategy.backMode === "en"
+      ? `Back is the English twin of the Chinese front: kicker “${strategy.backEn.kicker}”, English name “${strategy.backEn.name}”${strategy.backEn.title ? `, title “${strategy.backEn.title}”` : ""}${strategy.backEn.cta ? `, CTA “${strategy.backEn.cta}”` : ""}. Same layout skeleton, contacts re-set with English labels, mirrored decoration.`
+      : `Back: positioning line “${strategy.pitch}”${backTags ? `; tags: ${backTags}` : ""}. CTA: ${strategy.cta}. Same palette and paper, side decoration mirrored.`,
     omitted ? `Designer omitted: ${omitted}` : "",
     `The background MUST be designed, not a flat fill. Type must stay legible against the ground.`,
     `Avoid neon, cyberpunk, site watermarks, giant QR, icon grids, full-body people, cartoons.`,

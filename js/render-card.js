@@ -40,6 +40,23 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
     <div class="card-surface" aria-hidden="true">${decorHtml(spec, escapeHtml(design.monogram), flip)}</div>`;
 
   if (face === "back") {
+    if (strategy.backMode === "en" && strategy.backEn?.name) {
+      const enContacts = design.contactsEn.length
+        ? design.contactsEn.map((c) => `<span>${escapeHtml(c.value)}</span>`).join("")
+        : design.contacts.map((c) => `<span>${escapeHtml(c.value)}</span>`).join("");
+      return `${open}
+      <div class="card-face">
+        <div class="z-top"><span class="back-kicker">${escapeHtml(strategy.backEn.kicker || "CONTACT")}</span></div>
+        <div class="z-hero">
+          ${ornament}
+          <div class="card-name">${escapeHtml(strategy.backEn.name)}</div>
+          ${strategy.backEn.title ? `<div class="tag-row">${escapeHtml(strategy.backEn.title)}</div>` : ""}
+          ${strategy.backEn.cta ? `<div class="back-cta">${escapeHtml(strategy.backEn.cta)}</div>` : ""}
+        </div>
+        <div class="z-bottom">${enContacts}</div>
+      </div>
+    </article>`;
+    }
     return `${open}
       <div class="card-face">
         <div class="z-top"><span class="back-kicker">${escapeHtml(strategy.back.kicker)}</span></div>

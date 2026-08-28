@@ -25,7 +25,7 @@ function blank() {
     stage: "",
     stanceOverride: "",
     custom: { audience: "", scene: "", purpose: "", stage: "" },
-    edits: { masthead: "", role: "", pitch: "" },
+    edits: { masthead: "", role: "", pitch: "", backMode: "" },
     profile: { ...EMPTY_PROFILE },
     brief: null,
     styleSpec: null,
@@ -47,6 +47,7 @@ function load() {
         masthead: parsed.edits?.masthead || "",
         role: parsed.edits?.role || parsed.edits?.headline || "",
         pitch: parsed.edits?.pitch || "",
+        backMode: ["pitch", "en"].includes(parsed.edits?.backMode) ? parsed.edits.backMode : "",
       },
       profile: { ...EMPTY_PROFILE, ...(parsed.profile || {}) },
       // 设计稿存的是模型原文，每次 compose 时重新清洗——清洗规则改了立刻生效。
@@ -292,6 +293,10 @@ function render(opts = {}) {
     if (document.activeElement !== pitch) pitch.value = state.edits.pitch || strategy.derivedPitch;
   }
 
+  for (const btn of document.querySelectorAll("#backmode-row [data-backmode]")) {
+    btn.classList.toggle("is-on", (state.edits.backMode || "") === btn.dataset.backmode);
+  }
+
   const names = [
     strategy.scene?.label,
     strategy.purpose?.label,
@@ -497,6 +502,14 @@ function bind() {
   document.getElementById("e-pitch").addEventListener("input", (event) => {
     const value = event.target.value;
     state.edits.pitch = value === derived.pitch ? "" : value;
+    persist();
+    render({ skipInputs: true });
+  });
+
+  document.getElementById("backmode-row").addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-backmode]");
+    if (!btn) return;
+    state.edits.backMode = btn.dataset.backmode;
     persist();
     render({ skipInputs: true });
   });

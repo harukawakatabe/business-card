@@ -81,6 +81,21 @@ const BRIEF_SCHEMA = {
         cta: { type: "string", description: "背面行动号召，中文不超过 10 字" },
       },
     },
+    backMode: {
+      type: "string",
+      enum: ["pitch", "en"],
+      description:
+        "背面内容：pitch=相遇故事（默认）；en=英文版背面，与中文正面构成中英对照。只有这次相遇明显涉外（国际场合、外籍对象、海外合作）且用户填了英文名时才选 en；选了就必须给全 backEn 字段",
+    },
+    backEn: {
+      type: "object",
+      description: "backMode 为 en 时必填：英文背面文案。英文要自然，不写中式英语",
+      properties: {
+        title: { type: "string", description: "英文头衔，从用户头衔自然翻译，不升级职级，如 Business Director" },
+        kicker: { type: "string", description: "背面小标，英文 1-2 词，如 CONTACT" },
+        cta: { type: "string", description: "英文行动号召，不超过 6 词，如 WeChat me anytime" },
+      },
+    },
     backTags: {
       type: "array",
       maxItems: 3,
@@ -133,6 +148,7 @@ const BRIEF_SYSTEM = `你是一位替高管和创业者设计「对外身份」�
 6. 用户填的头衔可以改写措辞，让它对得上这次的对象，但不许升级职级、不许编造业绩数字。
 7. omitted 必须诚实：你拿掉的每一样都要给出理由，用户会读这一段来决定信不信你。
 8. 设计稿不决定配色。tone 只谈分量、密度、克制程度，不许写色号，也不许点名色相（墨绿、金色、朱红…）。配色是下一位设计师的事。
+9. 背面默认写相遇故事（backMode=pitch）。只有当这场相遇明显涉外——国际会议、外籍对象、海外合作——且用户填了英文名时，才把 backMode 设为 en，并给全套英文字段（title 从用户头衔自然翻译，不升职级）；英文要像母语者写的名片，同样不许出现求职类措辞。拿不准就留在 pitch。
 
 先判断这次相遇的分寸，再决定纸面留哪几个字。不要解释，直接调用工具提交。`;
 

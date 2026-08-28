@@ -8,7 +8,7 @@
  */
 import { PRESETS, sanitizeSpec, specToVars, decorHtml, describeSpec } from "./js/style-spec.js";
 import { briefContext, compose } from "./js/strategy.js";
-import { availableContacts, draftBrief, sanitizeBrief } from "./js/brief.js";
+import { availableContacts, briefRows, draftBrief, sanitizeBrief } from "./js/brief.js";
 import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw, printIssues } from "./js/design.js";
 import { buildPrompts } from "./js/prompts.js";
 import { cardMarkup } from "./js/render-card.js";
@@ -319,6 +319,57 @@ for (const [i, g] of garbage.entries()) {
   if (dQr.contacts.length >= dNo.contacts.length) bad("贴二维码后底栏没有让位");
   const issues = printIssues(dQr, withQr.profile);
   if (issues.length) bad(`二维码让位后仍有印制问题: ${issues.join("；")}`);
+}
+
+// 5c. 中英双面：没英文名必须回落 pitch；英文请愿句要拦；渲染链路要出英文背面
+{
+  const ctx = briefContext(base);
+  const briefEn = sanitizeBrief(
+    {
+      under: [{ label: "商务负责人" }],
+      contacts: [{ key: "wechat" }, { key: "phone" }],
+      backMode: "en",
+      backEn: { title: "Business Director", kicker: "CONTACT", cta: "WeChat me anytime" },
+      back: { kicker: "相见", pitch: "把合作推进到下一步。", cta: "请通过微信联系" },
+    },
+    ctx,
+    "en-ok",
+  );
+  if (briefEn.backMode !== "en") bad("有英文名时 backMode=en 应保留");
+  if (briefEn.backEn.title !== "Business Director") bad("backEn.title 清洗丢失");
+  if (briefEn.backEn.cta !== "WeChat me anytime") bad("backEn.cta 清洗丢失");
+
+  const noEn = sanitizeBrief(
+    { backMode: "en", backEn: { title: "X" } },
+    { ...ctx, profile: { ...ctx.profile, nameEn: "" } },
+    "en-none",
+  );
+  if (noEn.backMode !== "pitch") bad("没英文名 backMode 必须回落 pitch");
+
+  const pleaEn = sanitizeBrief(
+    { backMode: "en", backEn: { cta: "I am seeking opportunities", title: "Open to work" } },
+    ctx,
+    "en-plea",
+  );
+  if (/seeking|open to work/i.test(`${pleaEn.backEn.cta} ${pleaEn.backEn.title}`)) bad("英文请愿句漏进卡面");
+
+  const stateEn = { ...base, brief: briefEn, edits: { masthead: "", role: "", pitch: "", backMode: "en" } };
+  const sEn = compose(stateEn);
+  if (sEn.backMode !== "en") bad("edits.backMode=en 应生效");
+  const backHtml = cardMarkup(sEn, stateEn.profile, "back");
+  if (!backHtml.includes("Yuan Chen") || !backHtml.includes("Business Director") || !backHtml.includes("WeChat me anytime")) {
+    bad("英文背面渲染缺字段");
+  }
+  if (!backHtml.includes("WeChat chenyuan_biz")) bad("英文背面联系方式缺英文标签");
+  if (cardMarkup(sEn, stateEn.profile, "front").includes("Business Director")) bad("英文头衔漏到了正面");
+  if (sEn.design.contactsEn.length > sEn.design.contacts.length) bad("英文背面底栏条数比正面还多");
+  const issuesEn = printIssues(sEn.design, stateEn.profile);
+  if (issuesEn.some((i) => i.includes("英文背面"))) bad(`英文背面底栏超宽: ${issuesEn.join("；")}`);
+
+  const sDraft = compose(base);
+  if (sDraft.backMode !== "pitch") bad("规则草稿默认应为 pitch");
+  if (cardMarkup(sDraft, base.profile, "back").includes("Yuan Chen")) bad("pitch 模式背面不应出现英文版");
+  if (!briefRows(briefEn).some(([k, v]) => k === "背面" && v.includes("英文版"))) bad("briefRows 未标注英文背面");
 }
 
 // 6. 模型响应解析：Anthropic 的 tool_use 结构、缺字段、错误响应

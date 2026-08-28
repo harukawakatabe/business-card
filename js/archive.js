@@ -64,7 +64,7 @@ export function toComposeState(archive, scheme) {
     stage: s.stage,
     stanceOverride: "",
     custom: { ...s.custom },
-    edits: { masthead: "", role: "", pitch: "" },
+    edits: { masthead: "", role: "", pitch: "", backMode: "" },
     profile: { ...EMPTY_PROFILE, ...archive.profile },
     brief: s.brief,
     styleSpec: s.styleSpec,

@@ -37,16 +37,17 @@ flow.html           跳转到首页（旧链接兼容）
 css/styles.css      界面样式 + 完全变量驱动的名片渲染
 css/flow.css        产品版布局（档案栏 + 主路径）
 js/data.js          对象 / 场合 / 目的 / 阶段 / 立场 词表
-js/brief.js         设计稿契约：清洗器、规则草稿、人话行
+js/brief.js         设计稿契约：清洗器、规则草稿、人话行、背面中英模式
 js/strategy.js      四维解析 + 立场兜底 + 提醒；文案决策交给设计稿
-js/style-spec.js    视觉规格契约：schema、清洗器、六套内置预设、规格 → CSS 变量与装饰层
-js/design.js        把设计稿放进规格的版面约束（条目上限、被挤掉的记进不上卡）
+js/style-spec.js    视觉规格契约：schema、清洗器（含二维码位）、六套内置预设、规格 → CSS 变量与装饰层
+js/design.js        把设计稿放进规格的版面约束（条目上限、二维码占宽、被挤掉的记进不上卡）
 js/render-card.js   设计稿 → 名片 HTML（预览、打印、候选缩略图共用）
 js/llm.js           两段客户端：requestBrief → requestStyles
 js/prompts.js       中英生图提示词（吃设计稿的必印文字 + 规格 + promptNote）
 js/app.js           工作室交互、localStorage、打印、导出
 js/archive.js       产品版档案：一份人物料 + 多场相遇
 js/export.js        PNG / 双面 PDF（计算样式内联 → canvas）+ vCard
+js/image-in.js      贴图进档案（二维码）：压 480px 存 PNG data URL
 js/flow.js          产品版交互
 server.py           静态服务 + /api/design 代理（多家上游回落）
 check-spec.mjs      两份契约守卫 + 档案 / vCard / PDF（node check-spec.mjs）
@@ -67,7 +68,7 @@ check-spec.mjs      两份契约守卫 + 档案 / vCard / PDF（node check-spec.
 
 `sanitizeSpec()` 是视觉防线，必须保证任意畸形输入都产出可印制的规格：数值夹回区间、颜色做对比度兜底、侧边装饰与正文的留白冲突靠缩装饰而不是缩正文（见 `fitSides()`）。
 
-`sanitizeBrief()` 是文案防线：联系方式只能是用户真填过的字段、组织该藏的时候藏住、卡面不许出现请愿句、年龄/年限不许漏到卡上。omitted 写了英文名就把 `showNameEn` 关掉。
+`sanitizeBrief()` 是文案防线：联系方式只能是用户真填过的字段、组织该藏的时候藏住、卡面不许出现请愿句（中英都防）、年龄/年限不许漏到卡上。omitted 写了英文名就把 `showNameEn` 关掉；`backMode=en` 没有英文名时回落相遇故事。二维码位是「留不留位」的规格决定，用户没贴图就不渲染。
 
 ## 设计约束
 

@@ -199,6 +199,15 @@ export function compose(state) {
   const stance = STANCES[stanceId] || STANCES.credible;
   const pitch = state.edits?.pitch?.trim() || brief.back.pitch;
 
+  // 背面内容模式：工作室手动切换 > 设计稿决定。英文版没有英文名就回落相遇故事。
+  const backModeReq = state.edits?.backMode || brief.backMode;
+  const backMode = backModeReq === "en" && ctx.profile.nameEn?.trim() ? "en" : "pitch";
+  const backEn = {
+    ...brief.backEn,
+    name: brief.backEn?.name || ctx.profile.nameEn?.trim() || "",
+    cta: brief.backEn?.cta || (backMode === "en" ? "Keep in touch" : ""),
+  };
+
   const identity = {
     ...ctx,
     brief,
@@ -210,6 +219,8 @@ export function compose(state) {
     cta: brief.back.cta,
     showPortrait: showPhoto({ scene: ctx.scene, stance: stanceId, hasPortrait: Boolean(ctx.profile.portrait) }),
     back: { kicker: brief.back.kicker, pitch, cta: brief.back.cta },
+    backMode,
+    backEn,
     rationale: rationale(ctx, brief, stanceId),
     warnings: warnings(ctx, brief),
     completeness: completeness(state),

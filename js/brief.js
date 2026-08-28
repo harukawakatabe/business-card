@@ -9,15 +9,15 @@
  * 不关心它是规则算出来的还是模型写的。
  *
  * sanitizeBrief() 是防线：文字限长、联系方式必须是用户真填过的字段（模型不许编号码）、
- * 组织在该藏的时候藏住、卡面不许出现请愿句。
+ * 组织在该藏的时候藏住、卡面不许出现请愿句、英文背面没有英文名就回落相遇故事。
  */
 
 import { CONTACT_KEYS, CONTACT_LABELS, STANCES } from "./data.js";
 
 const STANCE_IDS = Object.keys(STANCES);
 
-/** 名片是被递出去的身份，不是请愿书。这些词出现在卡面文案里一律剔除。 */
-const PLEA = /求职|找工作|找下家|求贤|待业|失业|寻求机会|谋职|求推荐|求内推|招聘我/;
+/** 名片是被递出去的身份，不是请愿书。这些词出现在卡面文案里一律剔除（中英都防）。 */
+const PLEA = /求职|找工作|找下家|求贤|待业|失业|寻求机会|谋职|求推荐|求内推|招聘我|open to work|seeking opportunities|looking for (a|my next) job|available for hire/i;
 
 function text(v, max, dflt = "") {
   if (typeof v !== "string") return dflt;
@@ -69,6 +69,14 @@ function leaksResume(s, ctx) {
   return false;
 }
 
+function draftCtaEn(contacts) {
+  const first = contacts[0];
+  if (!first) return "Keep in touch";
+  if (first.key === "wechat") return "WeChat me";
+  if (first.key === "email") return "Drop me a line";
+  return "Get in touch";
+}
+
 /* ---------- 清洗 ---------- */
 
 export function sanitizeBrief(raw, ctx, fallbackId = "llm") {
@@ -114,6 +122,10 @@ export function sanitizeBrief(raw, ctx, fallbackId = "llm") {
   const omitEn = omitted.some((o) => /英文名|english/i.test(o.label));
   const askedEn = typeof src.showNameEn === "boolean" ? src.showNameEn : !omitEn;
 
+  // 背面中英对照：没有英文名时无论模型说什么都回落 pitch。
+  const backMode = src.backMode === "en" && hasNameEn ? "en" : "pitch";
+  const backEnSrc = src.backEn && typeof src.backEn === "object" ? src.backEn : {};
+
   return {
     id: text(src.id, 24, fallbackId),
     source: "llm",
@@ -131,6 +143,13 @@ export function sanitizeBrief(raw, ctx, fallbackId = "llm") {
       kicker: text(back.kicker, 8, "相见"),
       pitch: cardText(back.pitch, 40, "把这次相遇，收成一个可以继续的理由。"),
       cta: text(back.cta, 20, contacts[0] ? `请通过${contacts[0].label}联系` : "保持联系"),
+    },
+    backMode,
+    backEn: {
+      name: ctx.profile?.nameEn?.trim() || "",
+      title: cardText(backEnSrc.title, 48),
+      kicker: text(backEnSrc.kicker, 16, "CONTACT"),
+      cta: cardText(backEnSrc.cta, 30, draftCtaEn(contacts)),
     },
     backTags: backTags.filter((b) => !leaksResume(b.label, ctx)),
     omitted,
@@ -321,6 +340,14 @@ export function draftBrief(ctx) {
     contacts: contacts.map((c) => ({ ...c, why: "" })),
     contactWhy: contacts[0] ? `主通道取${contacts[0].label}，这是对方事后最可能用的` : "",
     back: { kicker: draftKicker(ctx), pitch: draftPitch(ctx), cta: draftCta(ctx, contacts) },
+    // 规则草稿不擅自决定中英对照；英文背面由大模型判断或工作室手动切换。
+    backMode: "pitch",
+    backEn: {
+      name: profile.nameEn?.trim() || "",
+      title: "",
+      kicker: "CONTACT",
+      cta: draftCtaEn(contacts),
+    },
     backTags,
     omitted: omitted.slice(0, 6),
     offstage: offstage.slice(0, 4),
@@ -338,9 +365,11 @@ export function briefRows(brief) {
     ["底栏", brief.contacts.map((c) => c.value).join("  ·  ") || "无联系", brief.contactWhy],
     [
       "背面",
-      [brief.back.kicker, brief.back.pitch, brief.backTags.map((b) => b.label).join(" · "), brief.back.cta]
-        .filter(Boolean)
-        .join("｜"),
+      brief.backMode === "en"
+        ? `${[brief.backEn.kicker, brief.backEn.name, brief.backEn.title, brief.backEn.cta].filter(Boolean).join("｜")}（英文版）`
+        : [brief.back.kicker, brief.back.pitch, brief.backTags.map((b) => b.label).join(" · "), brief.back.cta]
+            .filter(Boolean)
+            .join("｜"),
       "",
     ],
     ["不上卡", brief.omitted.map((o) => `${o.label}（${o.reason}）`).join("；") || "无", ""],

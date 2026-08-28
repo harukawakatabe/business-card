@@ -320,3 +320,4 @@ export const EMPTY_PROFILE = {
 
 export const CONTACT_KEYS = ["wechat", "phone", "email", "website"];
 export const CONTACT_LABELS = { wechat: "微信", phone: "电话", email: "邮箱", website: "站点" };
+export const CONTACT_LABELS_EN = { wechat: "WeChat", phone: "Tel", email: "Email", website: "Web" };

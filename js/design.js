@@ -6,6 +6,7 @@
  * 场合的信息密度、规格的条目上限、以及被版面挤掉的条目要记进「不上卡」。
  */
 
+import { CONTACT_LABELS_EN } from "./data.js";
 import { describeSpec, presetFor, sanitizeSpec } from "./style-spec.js";
 
 /** 正文区宽度，和 CSS 的 cqw 同一刻度（左右 pad 是百分比）。 */
@@ -105,6 +106,21 @@ export function printIssues(design, profile = {}) {
 
   if (usedContentCqh(design, profile) > faceHeightCqh(spec)) {
     issues.push("上排、姓名、头衔和底栏在 90×54 上叠在一起");
+  }
+
+  // 英文背面的底栏按「标签+值」再查一遍，不许出现 138 0… 这种半截号码。
+  if (design.contactsEn?.length) {
+    const enUsable = usable - qrReserveCqw(spec, profile);
+    if (spec.copy.contactStyle === "stack") {
+      for (const c of design.contactsEn) {
+        if (lineWidthCqw(c.value, t.contactSize) > enUsable) issues.push("英文背面底栏有一条超出版宽");
+      }
+    } else {
+      const used =
+        design.contactsEn.reduce((sum, c) => sum + lineWidthCqw(c.value, t.contactSize), 0) +
+        Math.max(0, design.contactsEn.length - 1) * 1.6;
+      if (used > enUsable + 0.05) issues.push("英文背面底栏一行超出版宽");
+    }
   }
   return [...new Set(issues)];
 }
@@ -224,6 +240,16 @@ export function designCard(identity, state, override) {
   const fitted = fitPrintedContacts(brief.contacts, spec, qrReserveCqw(spec, profile));
   const contacts = fitted.kept;
 
+  // 英文背面的底栏带英文标签，比正面裸值宽——按「标签+值」单独适配，装不下就少排。
+  const contactsEn =
+    identity.backMode === "en" && identity.backEn?.name
+      ? fitPrintedContacts(
+          contacts.map((c) => ({ ...c, value: `${CONTACT_LABELS_EN[c.key]} ${c.value}` })),
+          spec,
+          qrReserveCqw(spec, profile),
+        ).kept
+      : [];
+
   // 设计稿主动拿掉的，加上被这套版面挤掉的，一起对用户交代。
   const omitted = [...brief.omitted];
   for (const label of [...underAll.slice(spec.copy.maxUnder), ...fittedUnder.overflow]) {
@@ -247,6 +273,7 @@ export function designCard(identity, state, override) {
     showNameEn: brief.showNameEn && Boolean(profile.nameEn?.trim()),
     backTags: brief.backTags,
     contacts,
+    contactsEn,
     omitted,
     contactStyle: spec.copy.contactStyle,
     monogram: (profile.name || "名").trim().slice(0, 1),
