@@ -16,11 +16,12 @@ export function faceWidthCqw(spec) {
 }
 
 /**
- * 二维码贴上后占掉底栏一角的宽度，和 CSS 的让位 margin 同一刻度。
- * 没贴图时前端不渲染，排版约束也当它不存在。
+ * 二维码贴在正面时占掉底栏一角的宽度，和 CSS 的让位 margin 同一刻度。
+ * 码在背面时正面排版当它不存在；没贴图时同样不占位。
  */
 export function qrReserveCqw(spec, profile = {}) {
   if (!spec.qr?.show || !profile?.qrImage) return 0;
+  if ((spec.qr.face || "front") !== "front") return 0;
   return spec.qr.size + 5;
 }
 

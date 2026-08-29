@@ -24,9 +24,11 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
     face === "front" && strategy.showPortrait && profile.portrait
       ? `<img class="portrait" alt="" src="${profile.portrait}" />`
       : "";
-  // 二维码位只在用户真贴了图时渲染；没图时留位零成本，纸面不出现空框。
-  const qrOn = face === "front" && spec.qr?.show && Boolean(profile.qrImage);
-  const qr = qrOn ? `<img class="card-qr" alt="" src="${profile.qrImage}" />` : "";
+  // 二维码位只在用户真贴了图时渲染；面别/角位/装裱都来自这套设计。
+  const qrOn = spec.qr?.show && Boolean(profile.qrImage) && face === (spec.qr.face || "front");
+  const qr = qrOn
+    ? `<img class="card-qr" alt="" src="${profile.qrImage}" data-corner="${spec.qr.corner}" data-mount="${spec.qr.mount}" />`
+    : "";
   const top = design.top.map((x) => escapeHtml(x.label)).join("  ");
   const under = design.under.map((x) => escapeHtml(x.label)).join("  ·  ");
   const contacts = design.contacts.map((c) => `<span>${escapeHtml(c.value)}</span>`).join("");
@@ -45,6 +47,7 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
         ? design.contactsEn.map((c) => `<span>${escapeHtml(c.value)}</span>`).join("")
         : design.contacts.map((c) => `<span>${escapeHtml(c.value)}</span>`).join("");
       return `${open}
+      ${qr}
       <div class="card-face">
         <div class="z-top"><span class="back-kicker">${escapeHtml(strategy.backEn.kicker || "CONTACT")}</span></div>
         <div class="z-hero">
@@ -58,6 +61,7 @@ export function cardMarkup(strategy, profile, face, design = strategy.design) {
     </article>`;
     }
     return `${open}
+      ${qr}
       <div class="card-face">
         <div class="z-top"><span class="back-kicker">${escapeHtml(strategy.back.kicker)}</span></div>
         <div class="z-hero">

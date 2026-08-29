@@ -9,7 +9,7 @@
 import { PRESETS, sanitizeSpec, specToVars, decorHtml, describeSpec } from "./js/style-spec.js";
 import { briefContext, compose } from "./js/strategy.js";
 import { availableContacts, briefRows, draftBrief, sanitizeBrief } from "./js/brief.js";
-import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw, printIssues } from "./js/design.js";
+import { designCard, fitPrintedContacts, faceWidthCqw, lineWidthCqw, printIssues, qrReserveCqw } from "./js/design.js";
 import { buildPrompts } from "./js/prompts.js";
 import { cardMarkup } from "./js/render-card.js";
 import { DEMO, EMPTY_PROFILE, STANCES } from "./js/data.js";
@@ -288,19 +288,29 @@ for (const [i, g] of garbage.entries()) {
   auditSpec("adopted", s.design.spec);
 }
 
-// 5b. 二维码位：清洗器夹区间；贴了图才渲染；底栏必须让位
+// 5b. 二维码位：清洗器夹区间；面别/角位/装裱随设计；贴了图才渲染；正面底栏必须让位
 {
-  const qrSpec = sanitizeSpec({ ...PRESETS.credible, qr: { show: true, corner: "middle", size: 999 } }, "qr");
+  const qrSpec = sanitizeSpec(
+    { ...PRESETS.credible, qr: { show: true, corner: "middle", size: 999, mount: "gold" } },
+    "qr",
+  );
   if (qrSpec.qr.corner !== "br") bad("qr.corner 畸形值应回落 br");
   if (qrSpec.qr.size !== 26) bad(`qr.size 应夹到 26，实得 ${qrSpec.qr.size}`);
+  if (qrSpec.qr.mount !== "bare") bad("qr.mount 畸形值应回落 bare");
   if (sanitizeSpec({ qr: { show: "yes" } }, "qr2").qr.show !== false) bad("qr.show 应清洗成布尔");
-  if (sanitizeSpec({}, "qr3").qr.size !== 20) bad("qr.size 默认应为 20");
+  if (sanitizeSpec({}, "qr3").qr.size !== 18) bad("qr.size 默认应为 18");
+
+  const specFace = sanitizeSpec({ qr: { show: true, face: "side", corner: "tr" } }, "qrf");
+  if (specFace.qr.face !== "front" || specFace.qr.corner !== "br") bad("正面只许左下/右下，畸形面别应回落 front/br");
+  const specBack = sanitizeSpec({ qr: { show: true, face: "back", corner: "tr" } }, "qrb");
+  if (specBack.qr.face !== "back" || specBack.qr.corner !== "tr") bad("背面应保留右上角位");
 
   const withQr = { ...base, profile: { ...base.profile, qrImage: "data:image/png;base64,x" } };
   const sQr = compose(withQr);
   const frontQr = cardMarkup(sQr, withQr.profile, "front");
   if (!frontQr.includes("card-qr") || !frontQr.includes('data-qr="br"')) bad("贴了二维码图，正面没渲染二维码位");
-  if (cardMarkup(sQr, withQr.profile, "back").includes("card-qr")) bad("背面不该渲染二维码位");
+  if (!frontQr.includes('data-mount="quiet"')) bad("正面二维码装裱应来自规格");
+  if (cardMarkup(sQr, withQr.profile, "back").includes("card-qr")) bad("码在正面时背面不该渲染");
   if (cardMarkup(sQr, base.profile, "front").includes("card-qr")) bad("没贴图不该渲染二维码");
 
   const specQr = sanitizeSpec(
@@ -319,6 +329,20 @@ for (const [i, g] of garbage.entries()) {
   if (dQr.contacts.length >= dNo.contacts.length) bad("贴二维码后底栏没有让位");
   const issues = printIssues(dQr, withQr.profile);
   if (issues.length) bad(`二维码让位后仍有印制问题: ${issues.join("；")}`);
+
+  // 码在背面：背面渲染出码位，正面排版当它不存在
+  if (qrReserveCqw({ ...PRESETS.credible, qr: { show: true, face: "back", size: 20 } }, { qrImage: "x" }) !== 0) {
+    bad("码在背面时正面底栏不该占位");
+  }
+  const specBackFit = sanitizeSpec(
+    { ...PRESETS.credible, type: { ...PRESETS.credible.type, contactSize: 2.3 }, qr: { show: true, face: "back", corner: "tr", size: 20 } },
+    "qrback",
+  );
+  const dBack = designCard(compose(withQr), withQr, specBackFit);
+  if (dBack.contacts.length !== dNo.contacts.length) bad("码在背面时正面底栏不应让位");
+  const backHtml = cardMarkup(compose(withQr), withQr.profile, "back", dBack);
+  if (!backHtml.includes("card-qr") || !backHtml.includes('data-corner="tr"')) bad("码在背面时背面没渲染出码位");
+  if (cardMarkup(compose(withQr), withQr.profile, "front", dBack).includes("card-qr")) bad("码在背面时正面不该渲染");
 }
 
 // 5c. 中英双面：没英文名必须回落 pitch；英文请愿句要拦；渲染链路要出英文背面
@@ -375,8 +399,8 @@ for (const [i, g] of garbage.entries()) {
 // 5d. 工作室拍板二维码位：on 强制印，off 强制不印，空则听规格的
 {
   const img = { ...base.profile, qrImage: "data:image/png;base64,x" };
-  const stateOn = { ...base, qrOverride: "on", profile: img, styleSpec: PRESETS.authority };
-  if (PRESETS.authority.qr.show) bad("对照组预设不该自带二维码位");
+  const noQrSpec = sanitizeSpec({ ...PRESETS.credible, qr: { show: false, face: "front" } }, "noqr");
+  const stateOn = { ...base, qrOverride: "on", profile: img, styleSpec: noQrSpec };
   if (!cardMarkup(compose(stateOn), img, "front").includes("card-qr")) bad("qrOverride=on 未强制印二维码");
   const stateOff = { ...base, qrOverride: "off", profile: img, styleSpec: PRESETS.credible };
   if (cardMarkup(compose(stateOff), img, "front").includes("card-qr")) bad("qrOverride=off 未拦下二维码");

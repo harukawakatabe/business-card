@@ -330,11 +330,13 @@ const SPEC_SCHEMA = {
     qr: {
       type: "object",
       description:
-        "二维码位：正面是否给用户的微信二维码留一块白底贴图区。用户资料里带了二维码图时多数商务卡值得留；没传图时留位也不会印出来，属于零成本预留。",
+        "二维码位：把用户的微信二维码织进这套构图。有码和无码应当是两套不同的排布，不是同一张卡贴一个码。用户没传图时留位也不会印出来，属于零成本预留。",
       properties: {
-        show: { type: "boolean", description: "是否在正面留二维码位" },
-        corner: { type: "string", enum: ["br", "bl"], description: "二维码放哪个角，默认右下" },
-        size: { type: "number", description: "二维码边长 13-26（cqw）。低于 13 印出来扫不动，宁大勿小" },
+        show: { type: "boolean", description: "这套构图是否织入二维码位" },
+        face: { type: "string", enum: ["front", "back"], description: "码放哪一面。正面只许左下/右下（上角有上排和肖像）；放上方就放背面" },
+        corner: { type: "string", enum: ["tl", "tr", "bl", "br"], description: "四角之一，随构图骨架选，不要千篇一律右下" },
+        size: { type: "number", description: "二维码边长 13-26（cqw）。低于 13 印出来扫不动" },
+        mount: { type: "string", enum: ["bare", "quiet", "framed"], description: "装裱：bare=裸贴；quiet=同底色浅装裱；framed=细线框。深底设计用 bare 或 framed" },
       },
     },
   },
@@ -370,7 +372,7 @@ const STYLE_SYSTEM = `你是一位为高管和创业者做「对外身份」的�
 9. 色相按这次相遇自己选。模板有墨金、骨白青、夜橙、陶土、雪墨、亚麻紫、朱砂、海纹、松墨、青瓷、黛蓝、玫瑰木、石墨、琥珀、象牙酒红、玄银、青砖、麦秆，也可以自创，只要印得出、看得清。工作室网页的雪松绿与名片无关。
 10. 中文不要拉大字距、不要压行高。宋体和海报体出格会缺笔，看起来像错字；姓名下标签尤其如此。字距宁紧勿松，行高必须让横笔和宝盖完整露出来。
 11. 90×54mm 上上排、姓名、头衔、底栏必须各在各的区，不许重叠、不许裁掉笔画、不许用省略号截断。竖排底栏尤其容易把头衔和电话叠在一起——宁可少放一条或改成一行，也不要交一份印不全的稿。前端会按纸面检查，过不了会整组重出。
-12. 用户上传了微信二维码图时，多数商务卡值得在正面留一个二维码位（右下角为默认）；构图右下已有大装饰或底栏太满时可以不留，或换左下。size 13-26，宁大勿小——扫不出来的二维码等于没有。
+12. 用户上传了微信二维码图时，把码位织进这套构图：face（正面只许左下/右下，背面四角皆可）、corner、size 13-26、mount（bare=裸贴，quiet=同底色浅装裱，framed=细线框）。有码和无码必须是两套不同的排布——让底栏或上排给码让位，位置跟着这套构图的骨架走，禁止每张都千篇一律贴右下。
 
 先读懂设计稿的气质要求，再决定纸面。不要解释，直接调用工具提交。`;
 
@@ -428,7 +430,7 @@ function styleMessage(brief, ctx, paletteHint) {
   );
   if (stage?.stealth) lines.push("- 此人在职且不想暴露动向：不要张扬的大色块，气质克制。");
   if (profile.portrait) lines.push("- 正面右上会压一张小尺寸肖像，右侧要留出空间。");
-  if (profile.qrImage) lines.push("- 我上传了微信二维码图：可以在正面留一个二维码位（qr 字段），位置和大小由这套构图定。");
+  if (profile.qrImage) lines.push("- 我上传了微信二维码图：把码位织进这套构图（qr 的 face/corner/size/mount 由你定），正面只许左下右下，背面四角皆可。");
   lines.push("", "请给出三个视觉方案。");
   return lines.join("\n");
 }

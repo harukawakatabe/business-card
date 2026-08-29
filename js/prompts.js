@@ -73,9 +73,9 @@ export function buildPrompts(state, strategy) {
     }）：${bottom}`,
     t.ornament ? `- 姓名与标签之间加一个细菱形分隔饰件。` : "",
     spec.qr?.show
-      ? `- 正面${spec.qr.corner === "bl" ? "左下" : "右下"}角留一块约版宽 ${spec.qr.size.toFixed(
-          0,
-        )}% 的白底方形二维码贴图区：只留干净的白色空位，不要生成任何伪二维码图案。`
+      ? `- ${spec.qr.face === "back" ? "背面" : "正面"}${spec.qr.corner === "tl" ? "左上" : spec.qr.corner === "tr" ? "右上" : spec.qr.corner === "bl" ? "左下" : "右下"}角预留约版宽 ${spec.qr.size.toFixed(0)}% 的${
+          { quiet: "同底色浅装裱", framed: "细线框装裱" }[spec.qr.mount] || "无装裱"
+        }二维码贴图区：只留干净的空位，不要生成任何伪二维码图案。`
       : "",
     strategy.backMode === "en"
       ? `背面为英文版，与中文正面构成中英对照：小标「${strategy.backEn.kicker}」、英文名「${strategy.backEn.name}」${strategy.backEn.title ? `、头衔「${strategy.backEn.title}」` : ""}${strategy.backEn.cta ? `、CTA「${strategy.backEn.cta}」` : ""}。英文排版与正面同一套骨架，联系方式以英文标签重排，装饰镜像。`
@@ -112,9 +112,11 @@ export function buildPrompts(state, strategy) {
     `- Footer contacts (${spec.copy.contactStyle}, ${t.contactAlign}-aligned): ${bottom}`,
     t.ornament ? `- Thin diamond divider between name and tags.` : "",
     spec.qr?.show
-      ? `- Reserve a clean white square zone (~${spec.qr.size.toFixed(0)}% of card width) at the bottom-${
-          spec.qr.corner === "bl" ? "left" : "right"
-        } of the front for a WeChat QR sticker: leave it blank white, do NOT draw any fake QR pattern.`
+      ? `- Reserve a clean square zone (~${spec.qr.size.toFixed(0)}% of card width) at the ${
+          spec.qr.face === "back" ? "back" : "front"
+        } ${spec.qr.corner === "tl" ? "top-left" : spec.qr.corner === "tr" ? "top-right" : spec.qr.corner === "bl" ? "bottom-left" : "bottom-right"} corner for a WeChat QR sticker${
+          spec.qr.mount === "quiet" ? ", on a subtle same-tone plate" : spec.qr.mount === "framed" ? ", inside a hairline frame" : ""
+        }: leave it blank, do NOT draw any fake QR pattern.`
       : "",
     strategy.backMode === "en"
       ? `Back is the English twin of the Chinese front: kicker “${strategy.backEn.kicker}”, English name “${strategy.backEn.name}”${strategy.backEn.title ? `, title “${strategy.backEn.title}”` : ""}${strategy.backEn.cta ? `, CTA “${strategy.backEn.cta}”` : ""}. Same layout skeleton, contacts re-set with English labels, mirrored decoration.`

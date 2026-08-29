@@ -170,6 +170,10 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
     ? src.decor.map(sanitizeDecor).filter(Boolean).slice(0, 4)
     : [];
   const q = src.qr && typeof src.qr === "object" ? src.qr : {};
+  // 二维码是构图的一部分：面别、角位、装裱全由这套设计自己定。
+  // 正面上角有上排和肖像，只许左下/右下；背面四角皆可。
+  const qrFace = pick(q.face, ["front", "back"], "front");
+  const qrCornerRaw = pick(q.corner, ["tl", "tr", "bl", "br"], "br");
 
   const spec = {
     id: text(src.id, 24, fallbackId),
@@ -221,8 +225,10 @@ export function sanitizeSpec(raw, fallbackId = "llm") {
     // 二维码位是「留不留位」的设计决定；用户没贴图时前端不渲染，留位零成本。
     qr: {
       show: bool(q.show),
-      corner: pick(q.corner, ["br", "bl"], "br"),
-      size: num(q.size, 13, 26, 20),
+      face: qrFace,
+      corner: qrFace === "front" && qrCornerRaw !== "bl" ? "br" : qrCornerRaw,
+      size: num(q.size, 13, 26, 18),
+      mount: pick(q.mount, ["bare", "quiet", "framed"], "bare"),
     },
     copy: {
       maxUnder: num(c.maxUnder, 1, 3, 2),
@@ -355,6 +361,8 @@ export function specToVars(spec, flip = false) {
     `--contact-size:${t.contactSize}cqw`,
     `--contact-justify:${ALIGN_ITEMS[t.contactAlign]}`,
     `--qr-size:${spec.qr.size}cqw`,
+    `--qr-plate:${spec.palette.bg2}`,
+    `--qr-line:${spec.palette.muted}`,
   ].join(";");
 }
 
@@ -513,7 +521,9 @@ export function describeSpec(spec) {
   return {
     layout: `${spec.layoutName} · ${ALIGN_ZH[spec.frame.align]}，主体${ANCHOR_ZH[spec.frame.anchor]}${
       t.nameVertical ? `，姓名沿${SIDE_ZH[t.nameSide]}侧竖排` : ""
-    }${spec.qr.show ? `，${CORNER_ZH[spec.qr.corner]}留二维码位` : ""}`,
+    }${spec.qr.show ? `，${spec.qr.face === "back" ? "背面" : "正面"}${CORNER_ZH[spec.qr.corner]}${
+      { bare: "裸贴", quiet: "同底装裱", framed: "细线框" }[spec.qr.mount]
+    }二维码位` : ""}`,
     paper: spec.paper,
     palette: `底 ${p.bg}${p.bgMode !== "flat" ? ` → ${p.bg2}` : ""}　字 ${p.fg}　次 ${p.muted}　强调 ${p.accent}`,
     type: [
@@ -555,6 +565,7 @@ const RAW_PRESETS = {
       { kind: "corners", inset: 3.2, size: 9, width: 0.45, color: "accent" },
     ],
     copy: { maxUnder: 1, maxContacts: 2, contactStyle: "bare" },
+    qr: { show: true, face: "back", corner: "br", size: 18, mount: "quiet" },
   },
   credible: {
     id: "credible",
@@ -571,7 +582,7 @@ const RAW_PRESETS = {
     },
     decor: [{ kind: "edge", side: "left", size: 6.4, color: "accent", gradient: true }],
     copy: { maxUnder: 2, maxContacts: 3, contactStyle: "row" },
-    qr: { show: true, corner: "br", size: 20 },
+    qr: { show: true, face: "front", corner: "br", size: 20, mount: "quiet" },
   },
   ambitious: {
     id: "ambitious",
@@ -591,6 +602,7 @@ const RAW_PRESETS = {
       { kind: "wedge", side: "right", size: 22, skew: 38, color: "accent" },
     ],
     copy: { maxUnder: 2, maxContacts: 3, contactStyle: "bare" },
+    qr: { show: true, face: "front", corner: "bl", size: 16, mount: "framed" },
   },
   warm: {
     id: "warm",
@@ -607,7 +619,7 @@ const RAW_PRESETS = {
     },
     decor: [{ kind: "edge", side: "bottom", size: 30, color: "accent", fade: true, opacity: 0.42 }],
     copy: { maxUnder: 1, maxContacts: 1, contactStyle: "bare" },
-    qr: { show: true, corner: "br", size: 22 },
+    qr: { show: true, face: "back", corner: "br", size: 20, mount: "framed" },
   },
   quiet: {
     id: "quiet",
@@ -624,6 +636,7 @@ const RAW_PRESETS = {
     },
     decor: [{ kind: "frame", inset: 4.2, width: 0.35, color: "fg", opacity: 0.9 }],
     copy: { maxUnder: 1, maxContacts: 2, contactStyle: "bare" },
+    qr: { show: true, face: "front", corner: "br", size: 18, mount: "bare" },
   },
   creative: {
     id: "creative",
@@ -641,6 +654,7 @@ const RAW_PRESETS = {
     },
     decor: [{ kind: "edge", side: "left", size: 29, color: "accent", gradient: true }],
     copy: { maxUnder: 2, maxContacts: 2, contactStyle: "stack" },
+    qr: { show: true, face: "back", corner: "bl", size: 20, mount: "framed" },
   },
 };
 

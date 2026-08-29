@@ -809,17 +809,24 @@ a.btn {
   z-index: 2;
 }
 
-/* 二维码位：白底托底保证深色卡上可扫；底栏按角让位（margin，分隔线一起缩）。 */
+/* 二维码：面别、角位、装裱全部来自规格——有码没码是两套排布，不是贴纸。 */
 .card-qr {
   position: absolute;
   z-index: 2;
-  width: var(--qr-size, 20cqw);
+  width: var(--qr-size, 18cqw);
   aspect-ratio: 1;
   object-fit: contain;
-  padding: 1.4cqw;
-  background: #ffffff;
-  border-radius: 1cqw;
-  box-shadow: 0 0.6cqw 2.4cqw rgba(0, 0, 0, 0.2);
+}
+
+.card-qr[data-mount="quiet"] {
+  padding: 1.6cqw;
+  background: var(--qr-plate);
+  border-radius: 0.6cqw;
+}
+
+.card-qr[data-mount="framed"] {
+  padding: 1.6cqw;
+  border: 0.25cqw solid var(--qr-line);
 }
 
 .card[data-qr="br"] .card-qr {
@@ -832,12 +839,31 @@ a.btn {
   bottom: 7%;
 }
 
+.card[data-qr="tr"] .card-qr {
+  right: 5%;
+  top: 8%;
+}
+
+.card[data-qr="tl"] .card-qr {
+  left: 5%;
+  top: 8%;
+}
+
+/* 底栏 / 上排按角让位（margin，分隔线一起缩）。 */
 .card[data-qr="br"] .z-bottom {
-  margin-right: calc(var(--qr-size, 20cqw) + 6cqw);
+  margin-right: calc(var(--qr-size, 18cqw) + 7cqw);
 }
 
 .card[data-qr="bl"] .z-bottom {
-  margin-left: calc(var(--qr-size, 20cqw) + 6cqw);
+  margin-left: calc(var(--qr-size, 18cqw) + 7cqw);
+}
+
+.card[data-qr="tr"] .z-top {
+  margin-right: calc(var(--qr-size, 18cqw) + 7cqw);
+}
+
+.card[data-qr="tl"] .z-top {
+  margin-left: calc(var(--qr-size, 18cqw) + 7cqw);
 }
 
 /* 贴图槽（二维码）：点击选图，聚焦后可直接 ⌘/Ctrl+V 粘贴。 */
