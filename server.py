@@ -9,9 +9,9 @@
 
 对外服务（HOST=0.0.0.0 挂到域名上）：访客在 login.html 注册 / 登录，账号、会话、
 一人一份的档案和积分都记在 data/identity.db（SQLite，标准库自带，仍是零依赖）；
-设计代理对登录用户开放、按积分计费（DESIGN_CREDITS，本机使用不限）。挂在反向
-代理后面时设 TRUST_PROXY=1，才拿得到真实客户端 IP。data/ 和 .env 永远不会被
-当静态文件发出去。
+设计代理对登录用户开放、按积分计费（DESIGN_CREDITS / DESIGN_COST，.env 里配的
+ADMIN_USER 不限）。挂在反向代理后面时设 TRUST_PROXY=1，才拿得到真实客户端 IP。
+data/ 和 .env 永远不会被当静态文件发出去。
 """
 
 from __future__ import annotations
@@ -158,11 +158,49 @@ def auth_headers(p: dict) -> dict:
 
 
 def initial_credits() -> int:
-    """新账号送多少积分。DESIGN_CREDITS 写在 .env 里，默认 20。"""
+    """新账号送多少积分。DESIGN_CREDITS 写在 .env 里，默认 500。"""
     try:
-        return max(0, int(env("DESIGN_CREDITS") or 20))
+        return max(0, int(float(env("DESIGN_CREDITS") or 500)))
     except ValueError:
-        return 20
+        return 500
+
+
+def design_cost() -> float:
+    """单段设计（写设计稿 / 出三版视觉）扣多少分。DESIGN_COST 写在 .env 里，默认 12.5；
+    产品页一键生成走两段 = 双倍。500 / 12.5×2 正好 20 次完整生成。"""
+    try:
+        return max(0.0, float(env("DESIGN_COST") or 12.5))
+    except ValueError:
+        return 12.5
+
+
+def fmt_credits(n: float) -> str:
+    """12.5 → "12.5"，25.0 → "25"。"""
+    return f"{n:g}"
+
+
+def is_admin(username: str) -> bool:
+    name = env("ADMIN_USER")
+    return bool(name) and username == name
+
+
+def ensure_admin() -> None:
+    """按 .env 建 / 对齐管理员账号：密码以 .env 为准，防止名字被别人抢注冒充。"""
+    name = env("ADMIN_USER")
+    password = env("ADMIN_PASSWORD")
+    if not name or not password:
+        return
+    with db() as con:
+        row = con.execute("SELECT salt, hash FROM users WHERE username = ?", (name,)).fetchone()
+        if row and hmac.compare_digest(hash_password(password, row["salt"])[1], row["hash"]):
+            return
+        salt, digest = hash_password(password)
+        con.execute(
+            "INSERT INTO users (username, salt, hash, credits, created) VALUES (?,?,?,?,?) "
+            "ON CONFLICT(username) DO UPDATE SET salt = excluded.salt, hash = excluded.hash",
+            (name, salt, digest, initial_credits(), int(time.time())),
+        )
+    print(f"管理员  {name}（积分不限）", flush=True)
 
 
 @contextmanager
@@ -302,15 +340,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def client_ip(self) -> str:
         # 挂在反向代理后面时，所有访客的来源都是 127.0.0.1；
-        # 设了 TRUST_PROXY=1 才信 X-Forwarded-For，不然谁都能伪造这个头冒充本机
+        # 设了 TRUST_PROXY=1 才信 X-Forwarded-For，不然谁都能伪造这个头骗注册限流
         if env("TRUST_PROXY"):
             xff = self.headers.get("X-Forwarded-For", "")
             if xff:
                 return xff.split(",")[0].strip()
         return self.client_address[0]
-
-    def is_local(self) -> bool:
-        return self.client_ip() in ("127.0.0.1", "::1", "localhost")
 
     def translate_path(self, path):
         # 账号库和密钥永远不该被当静态文件发出去
@@ -357,11 +392,11 @@ class Handler(SimpleHTTPRequestHandler):
         if route == "/api/auth":
             user = self.session_user()
             credits = None
-            if user and not self.is_local():
+            if user and not is_admin(user):
                 with db() as con:
                     row = con.execute("SELECT credits FROM users WHERE username = ?", (user,)).fetchone()
                     credits = row["credits"] if row else None
-            # credits 为 null：没登录，或者本机使用（不限）
+            # credits 为 null：没登录，或是管理员（不限）
             self.send_json(200, {"user": user, "credits": credits})
             return
         if route == "/api/store":
@@ -484,10 +519,9 @@ class Handler(SimpleHTTPRequestHandler):
         if route != "/api/design":
             self.send_json(404, {"error": "没有这个接口"})
             return
-        # 对外服务：登录用户按积分计费（一段设计扣 1 分，本机不限），额度由 .env 那家上游承担
+        # 对外服务：登录用户按积分计费，管理员（.env 里配的 ADMIN_USER）不限
         user = self.session_user()
-        local = self.is_local()
-        if not (local or user):
+        if not user:
             self.send_json(403, {"error": "代理只服务登录用户"})
             return
 
@@ -500,20 +534,23 @@ class Handler(SimpleHTTPRequestHandler):
         if payload is None:
             return
 
-        # 先原子预扣一分（credits > 0 才扣得动，天然防并发透支），上游全军覆没再还回去
+        # 先原子预扣（credits 够才扣得动，天然防并发透支），上游全军覆没再还回去
         charged = False
-        if user and not local:
+        cost = design_cost()
+        if not is_admin(user):
             with db() as con:
                 cur = con.execute(
-                    "UPDATE users SET credits = credits - 1 WHERE username = ? AND credits > 0", (user,)
+                    "UPDATE users SET credits = credits - ? WHERE username = ? AND credits >= ?",
+                    (cost, user, cost),
                 )
                 if cur.rowcount != 1:
                     self.send_json(
                         402,
                         {
                             "error": (
-                                f"积分用完了：每个账号送 {initial_credits()} 分，"
-                                "「让顾问写设计稿」「出三版视觉」各扣 1 分，上游失败会自动返还。"
+                                f"积分用完了：账号初始 {fmt_credits(initial_credits())} 分，"
+                                f"「让顾问写设计稿」「出三版视觉」各扣 {fmt_credits(cost)} 分、"
+                                f"一键生成一次共 {fmt_credits(cost * 2)} 分，上游失败自动返还。"
                                 "需要更多请联系站长。"
                             )
                         },
@@ -571,7 +608,7 @@ class Handler(SimpleHTTPRequestHandler):
         if raw is None:
             if charged:
                 with db() as con:
-                    con.execute("UPDATE users SET credits = credits + 1 WHERE username = ?", (user,))
+                    con.execute("UPDATE users SET credits = credits + ? WHERE username = ?", (cost, user))
             self.send_json(
                 502,
                 {
@@ -593,6 +630,7 @@ def main() -> None:
     load_env(ROOT / ".env")
     os.chdir(ROOT)
     init_db()
+    ensure_admin()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     chain = provider_chain()
     print(f"商业身份  http://{HOST}:{PORT}", flush=True)
