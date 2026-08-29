@@ -9,16 +9,19 @@ python3 server.py
 # http://127.0.0.1:8765
 ```
 
-零依赖（只用 Python 标准库）。`server.py` 提供静态文件，外加一个 `/api/design` 代理；其余逻辑全在浏览器里（`js/`）。
+零依赖（只用 Python 标准库）。`server.py` 提供静态文件，外加 `/api/design` 代理和账号 / 档案接口；其余逻辑全在浏览器里（`js/`）。
 
 想让大模型写设计稿并出视觉：`cp .env.example .env` 按里面的说明填一家上游后重启。没配也能跑：设计稿走规则草稿，视觉走内置预设。
+
+对外提供服务：`HOST=0.0.0.0 python3 server.py`。访客在 `login.html` 注册 / 登录（开放注册，用户名 + 密码，PBKDF2 存哈希），两页都要登录才进；档案按登录用户一人一份存 `data/store/<用户名>.json`，账号会话在 `data/auth.json`——`data/` 已 gitignore，也永远不被当静态文件发出去。设计代理对登录用户开放，上游额度由 `.env` 那家承担；要收紧改 `handle_auth`。
 
 代理只认 Anthropic Messages 协议。`.env` 里 `DESIGN_PROVIDER` / `DESIGN_FALLBACK` 决定顺序（默认 kimi → mimo → deepseek），思考默认关。密钥只走 `.env`，由 `server.py` 读取，绝不进浏览器、不进仓库。
 
 ## 两页
 
-- **首页（产品版）** `index.html`：傻瓜主路径，适合拿出去讲故事、挂到个人域名根路径。一份人物料 + 多场相遇；答完四问一键出设计稿和三版视觉，导出正面/背面 PNG、双面 PDF（90×54mm @300dpi）和 vCard。档案在 `identity.flow.v1`。
-- **工作室** `studio.html`：实用向。两段手动走（设计稿 → 出三版视觉）、立场覆盖、色系模板、手改文案、导出、打印、生图提示词。草稿在 `identity.atelier.v1`。两页互链，互不覆盖。`flow.html` 会跳回首页。
+- **首页（产品版）** `index.html`：傻瓜主路径，适合拿出去讲故事、挂到个人域名根路径。一份人物料 + 多场相遇；答完四问一键出设计稿和三版视觉，导出正面/背面 PNG、双面 PDF（90×54mm @300dpi）和 vCard。档案键 `identity.flow.v1`，按登录用户存服务器。
+- **工作室** `studio.html`：实用向。两段手动走（设计稿 → 出三版视觉）、立场覆盖、色系模板、手改文案、导出、打印、生图提示词。草稿键 `identity.atelier.v1`，同样按登录用户存服务器。两页互链，互不覆盖。`flow.html` 会跳回首页。
+- **登录** `login.html`：对外服务的门。注册 / 登录同一个表单，会话走 HttpOnly cookie；两页由 `boot.js` 挡门，未登录先来这儿。
 
 ## 工作流：两段链路
 
@@ -31,11 +34,16 @@ python3 server.py
 ## 结构
 
 ```
+login.html          登录页：注册 / 登录同一个表单
 index.html          首页 / 产品版：档案 + 一键生成 + PNG / PDF / vCard
 studio.html         工作室：问询 + 预览 + 导出 + 打印 + 生图提示词
 flow.html           跳转到首页（旧链接兼容）
 css/styles.css      界面样式 + 完全变量驱动的名片渲染
 css/flow.css        产品版布局（档案栏 + 主路径）
+js/auth.js          登录态客户端：挡门、当前用户、页头用户条
+js/boot.js          页面门卫：先登录、再动态拉起 flow / app
+js/login.js         登录页交互
+js/store.js         档案存取：服务器一人一份 + localStorage 缓存兜底
 js/data.js          对象 / 场合 / 目的 / 阶段 / 立场 词表
 js/brief.js         设计稿契约：清洗器、规则草稿、人话行、背面中英模式
 js/strategy.js      四维解析 + 立场兜底 + 提醒；文案决策交给设计稿
@@ -44,12 +52,12 @@ js/design.js        把设计稿放进规格的版面约束（条目上限、二
 js/render-card.js   设计稿 → 名片 HTML（预览、打印、候选缩略图共用）
 js/llm.js           两段客户端：requestBrief → requestStyles
 js/prompts.js       中英生图提示词（吃设计稿的必印文字 + 规格 + promptNote）
-js/app.js           工作室交互、localStorage、打印、导出
-js/archive.js       产品版档案：一份人物料 + 多场相遇
+js/app.js           工作室交互、打印、导出
+js/archive.js       产品版档案：一份人物料 + 多场相遇（存取走 store.js）
 js/export.js        PNG / 双面 PDF（计算样式内联 → canvas）+ vCard
 js/image-in.js      贴图进档案（二维码）：压 480px 存 PNG data URL
 js/flow.js          产品版交互
-server.py           静态服务 + /api/design 代理（多家上游回落）
+server.py           静态服务 + /api/design 代理（多家上游回落）+ 账号与档案接口
 check-spec.mjs      两份契约守卫 + 档案 / vCard / PDF（node check-spec.mjs）
 ```
 

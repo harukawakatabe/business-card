@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>商业身份 · 登录</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="login-page">
+    <form class="login-card" id="login-form">
+      <p class="q-kicker">一份物料 · 多场相遇</p>
+      <h1>商业身份</h1>
+      <p class="login-lead">一人一个名字，档案跟着人走。第一次来，点「注册并进入」。</p>
+      <label class="login-field">用户名
+        <input id="f-user" maxlength="20" autocomplete="username" required />
+      </label>
+      <label class="login-field">密码（至少 6 位）
+        <input id="f-pass" type="password" maxlength="128" autocomplete="current-password" required />
+      </label>
+      <div class="login-actions">
+        <button class="btn chop" type="submit" id="btn-login">登录</button>
+        <button class="btn" type="button" id="btn-reg">注册并进入</button>
+      </div>
+      <p class="login-note" id="login-note" role="alert"></p>
+    </form>
+    <script type="module" src="js/login.js"></script>
+  </body>
+</html>

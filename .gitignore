@@ -1,5 +1,6 @@
 .DS_Store
 .env
+data/
 .venv/
 .uv-cache/
 node_modules/

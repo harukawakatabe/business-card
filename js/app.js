@@ -8,6 +8,7 @@ import { cardMarkup, cardPair, escapeHtml } from "./render-card.js";
 import { requestBrief, requestStyles } from "./llm.js";
 import { buildVCard, downloadBlob, downloadText, fileStem, frameToJpegBytes, frameToPngBlob, pdfFromJpegs, PNG_H, PNG_W, withExportFrame } from "./export.js";
 import { imageFromClipboard, ingestImage } from "./image-in.js";
+import { loadStore, saveStore } from "./store.js";
 
 const KEY = "identity.atelier.v1";
 const FIELDS = [
@@ -35,11 +36,10 @@ function blank() {
   };
 }
 
-function load() {
+async function load() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return blank();
-    const parsed = JSON.parse(raw);
+    const parsed = await loadStore(KEY);
+    if (!parsed) return blank();
     return {
       ...blank(),
       ...parsed,
@@ -65,7 +65,7 @@ function load() {
   }
 }
 
-let state = load();
+let state = await load();
 let derived = { masthead: "", role: "", pitch: "" };
 let designing = false;
 let designNote = { text: "", error: false };
@@ -73,16 +73,7 @@ let briefing = false;
 let briefNote = { text: "", error: false };
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    try {
-      const slim = { ...state, profile: { ...state.profile, portrait: "", qrImage: "" } };
-      localStorage.setItem(KEY, JSON.stringify(slim));
-    } catch {
-      /* quota */
-    }
-  }
+  saveStore(KEY, state);
 }
 
 function readPortrait(file) {

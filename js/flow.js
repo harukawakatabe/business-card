@@ -42,7 +42,7 @@ const HERO_SCENES = [
   { scene: "pitch", purpose: "fundraise", audience: "investor", caption: "路演现场 · 递给投资人" },
 ];
 
-let archive = loadArchive();
+let archive = await loadArchive();
 let busy = false;
 let phase = "idle";
 let note = { text: "", error: false };

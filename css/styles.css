@@ -1084,3 +1084,78 @@ a.btn {
     filter: none;
   }
 }
+
+/* ---------- 登录页 ---------- */
+
+.login-page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(400px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--ink);
+  box-shadow: var(--shadow);
+  padding: 34px 34px 28px;
+}
+
+.login-card h1 {
+  margin: 6px 0;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.login-lead {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.login-field {
+  display: block;
+  margin-top: 16px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+.login-field input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 11px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.login-field input:focus {
+  outline: none;
+  border-color: var(--accent-deep);
+}
+
+.login-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.login-note {
+  margin: 14px 0 0;
+  min-height: 1.2em;
+  font-size: 13px;
+  color: var(--chop);
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}

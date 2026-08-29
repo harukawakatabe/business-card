@@ -1,10 +1,12 @@
 /**
  * 身份档案：一份人物料 + 多份「这场相遇」方案。
- * 只给产品版首页用。工作室 studio.html 继续走自己的 localStorage。
+ * 只给产品版首页用。工作室 studio.html 走自己的 atelier 档案。
+ * 存取经 store.js：登录用户一人一份存服务器，localStorage 只做缓存。
  */
 
 import { AUDIENCES, EMPTY_PROFILE, PURPOSES, SCENES, STAGES } from "./data.js";
 import { sanitizeSpec } from "./style-spec.js";
+import { loadStore, saveStore } from "./store.js";
 
 export const ARCHIVE_KEY = "identity.flow.v1";
 
@@ -72,11 +74,10 @@ export function toComposeState(archive, scheme) {
   };
 }
 
-export function loadArchive() {
+export async function loadArchive() {
   try {
-    const raw = localStorage.getItem(ARCHIVE_KEY);
-    if (!raw) return blankArchive();
-    const parsed = JSON.parse(raw);
+    const parsed = await loadStore(ARCHIVE_KEY);
+    if (!parsed) return blankArchive();
     const profile = { ...EMPTY_PROFILE, ...(parsed.profile || {}) };
     const schemes = Array.isArray(parsed.schemes)
       ? parsed.schemes.map((s) => ({
@@ -98,17 +99,5 @@ export function loadArchive() {
 }
 
 export function saveArchive(archive) {
-  try {
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive));
-  } catch {
-    try {
-      const slim = {
-        ...archive,
-        profile: { ...archive.profile, portrait: "", qrImage: "" },
-      };
-      localStorage.setItem(ARCHIVE_KEY, JSON.stringify(slim));
-    } catch {
-      /* quota */
-    }
-  }
+  saveStore(ARCHIVE_KEY, archive);
 }
