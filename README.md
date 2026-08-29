@@ -20,7 +20,7 @@ python3 server.py
 # 浏览器打开 http://127.0.0.1:8765
 ```
 
-端口可用环境变量改：`PORT=8766 python3 server.py`。草稿存在浏览器 `localStorage`，不上传任何服务器。
+端口可用环境变量改：`PORT=8766 python3 server.py`。两页都要先在 `login.html` 注册 / 登录（开放注册，用户名 + 密码）；账号、会话、按用户一人一份的档案和积分全存在服务器 `data/identity.db`（SQLite），浏览器 `localStorage` 只做缓存兜底。每 IP 每小时限注册 5 个账号。
 
 ### 让大模型写设计稿并做视觉（可选）
 
@@ -30,7 +30,7 @@ python3 server.py
 cp .env.example .env   # 填一家上游的 BASE_URL / API_KEY / MODEL，然后重启 server.py
 ```
 
-代理只认 Anthropic Messages 协议（Kimi / MiMo / DeepSeek / 官方都可以）。`DESIGN_PROVIDER` 和 `DESIGN_FALLBACK` 决定试的顺序。key 只由 `server.py` 读取，浏览器拿不到；`.env` 已在 `.gitignore` 里。前端请求走本机 `/api/design` 代理，只接受来自本机的调用。
+代理只认 Anthropic Messages 协议（Kimi / MiMo / DeepSeek / 官方都可以）。`DESIGN_PROVIDER` 和 `DESIGN_FALLBACK` 决定试的顺序。key 只由 `server.py` 读取，浏览器拿不到；`.env` 已在 `.gitignore` 里。前端请求走服务器的 `/api/design` 代理，对登录用户按积分计费：新账号送 `DESIGN_CREDITS` 分（默认 500），一段设计扣 `DESIGN_COST` 分（默认 25），上游失败自动返还；管理员（`.env` 里配 `ADMIN_USER` / `ADMIN_PASSWORD`，启动自动建号）积分不限。
 
 配好后先点「让顾问写设计稿」，再点「出三版视觉」。第二步可以挑一个色系模板（墨金、夜橙、朱砂…），不选则三版必须换色相——工作室网页的雪松绿只是界面皮肤，不锁名片。点任意一版采纳；卡面、设计说明和两份生图提示词会同步换掉。
 
@@ -110,4 +110,4 @@ node check-spec.mjs
 
 ## 不是什么
 
-不是 AI 自动画图，不是多人账号系统，也不是把「求职中」印到给别人的卡上。卡是对外身份；策略说明只给你自己看。
+不是 AI 自动画图，也不是把「求职中」印到给别人的卡上。卡是对外身份；策略说明只给你自己看。
