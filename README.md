@@ -1,6 +1,6 @@
 # 商业身份
 
-本地网页工具：把一张名片当成**一次相遇的身份设计**，而不是填空生成的联系卡片。
+自托管的网页工具：把一张名片当成**一次相遇的身份设计**，而不是填空生成的联系卡片。
 
 你先说清四件事——在什么场合、这张卡用来做什么、递给什么人、你现在处于哪一段——再可选地放下个人资历。工具据此写出一份名片设计稿，再按这份稿子做出视觉。
 
@@ -20,7 +20,7 @@ python3 server.py
 # 浏览器打开 http://127.0.0.1:8765
 ```
 
-端口可用环境变量改：`PORT=8766 python3 server.py`。草稿存在浏览器 `localStorage`，不上传任何服务器。
+端口可用环境变量改：`PORT=8766 python3 server.py`。两页都要先在 `login.html` 注册 / 登录（开放注册，用户名 + 密码）；账号、会话、按用户一人一份的档案和积分全存在服务器 `data/identity.db`（SQLite），浏览器 `localStorage` 只做缓存兜底。每 IP 每小时限注册 5 个账号。
 
 ### 让大模型写设计稿并做视觉（可选）
 
@@ -30,9 +30,64 @@ python3 server.py
 cp .env.example .env   # 填一家上游的 BASE_URL / API_KEY / MODEL，然后重启 server.py
 ```
 
-代理只认 Anthropic Messages 协议（Kimi / MiMo / DeepSeek / 官方都可以）。`DESIGN_PROVIDER` 和 `DESIGN_FALLBACK` 决定试的顺序。key 只由 `server.py` 读取，浏览器拿不到；`.env` 已在 `.gitignore` 里。前端请求走本机 `/api/design` 代理，只接受来自本机的调用。
+代理只认 Anthropic Messages 协议（Kimi / MiMo / DeepSeek / 官方都可以）。`DESIGN_PROVIDER` 和 `DESIGN_FALLBACK` 决定试的顺序。key 只由 `server.py` 读取，浏览器拿不到；`.env` 已在 `.gitignore` 里。前端请求走服务器的 `/api/design` 代理，对登录用户按积分计费：新账号送 `DESIGN_CREDITS` 分（默认 500），一段设计扣 `DESIGN_COST` 分（默认 25），上游失败自动返还；管理员（`.env` 里配 `ADMIN_USER` / `ADMIN_PASSWORD`，启动自动建号）积分不限。
 
 配好后先点「让顾问写设计稿」，再点「出三版视觉」。第二步可以挑一个色系模板（墨金、夜橙、朱砂…），不选则三版必须换色相——工作室网页的雪松绿只是界面皮肤，不锁名片。点任意一版采纳；卡面、设计说明和两份生图提示词会同步换掉。
+
+## 部署成线上服务（可选）
+
+直跑适合本机用；要长期对外，配 systemd 常驻 + nginx 反代上 HTTPS。
+
+`/etc/systemd/system/business-card.service`：
+
+```ini
+[Unit]
+Description=business-card
+After=network.target
+
+[Service]
+WorkingDirectory=/path/to/business-card
+ExecStart=/usr/bin/python3 server.py
+User=www-data
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now business-card   # 开机自启 + 立即启动
+```
+
+日常：`sudo systemctl restart business-card` 重启（改完 `server.py` 必须重启，Python 不热加载），`journalctl -u business-card -f` 看日志。
+
+监听地址用环境变量传（如 `Environment=HOST=0.0.0.0` 写进单元文件的 `[Service]`）。注意 `HOST` 写在 `.env` 里**不生效**——它在 `.env` 加载之前就被读了。更推荐的做法是不把 8765 暴露到公网，而是挂反代（顺带拿到 HTTPS）：
+
+nginx 站点（如 `/etc/nginx/sites-enabled/your.domain.conf`）：
+
+```nginx
+server {
+    server_name your.domain;
+    client_max_body_size 20m;      # 档案里带二维码 PNG data URL，默认 1m 可能不够
+    location / {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;   # 设计接口要等大模型，默认 60s 会中途掐断
+    }
+    listen 80;
+}
+```
+
+```bash
+sudo certbot --nginx -d your.domain   # 签 Let's Encrypt 证书 + 自动加 443 和 HTTP 跳转
+```
+
+挂了反代后在 `.env` 里设 `TRUST_PROXY=1`：注册限流改按 `X-Forwarded-For` 里的真实访客 IP 算——不然所有请求的来源都是 127.0.0.1，全站共享一个限流额度。只在有反代时开：直连时这个头谁都能伪造。
 
 ## 有什么
 
@@ -55,4 +110,4 @@ node check-spec.mjs
 
 ## 不是什么
 
-不是 AI 自动画图，不是多人账号系统，也不是把「求职中」印到给别人的卡上。卡是对外身份；策略说明只给你自己看。
+不是 AI 自动画图，也不是把「求职中」印到给别人的卡上。卡是对外身份；策略说明只给你自己看。
