@@ -7,9 +7,11 @@
 上游可以是任何说 Anthropic Messages 协议的服务（官方、Kimi、MiMo、DeepSeek…），
 按 .env 里的顺序依次尝试，前一家失败就换下一家。协议不同的服务不在此列。
 
-对外服务（HOST=0.0.0.0 挂到域名上）：访客在 login.html 注册 / 登录，一人一份
-档案存在 data/store/ 下自己的文件里；设计代理对登录用户开放，本机请求依旧直通。
-data/ 和 .env 永远不会被当静态文件发出去。
+对外服务（HOST=0.0.0.0 挂到域名上）：访客在 login.html 注册 / 登录，账号、会话、
+一人一份的档案和积分都记在 data/identity.db（SQLite，标准库自带，仍是零依赖）；
+设计代理对登录用户开放、按积分计费（DESIGN_CREDITS，本机使用不限）。挂在反向
+代理后面时设 TRUST_PROXY=1，才拿得到真实客户端 IP。data/ 和 .env 永远不会被
+当静态文件发出去。
 """
 
 from __future__ import annotations
@@ -20,10 +22,11 @@ import json
 import os
 import re
 import secrets
-import threading
+import sqlite3
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -41,20 +44,42 @@ ENV_HINT = (
     "后重启 server.py。在这之前设计稿走规则草稿、视觉走内置的六套预设，工具照样能用。"
 )
 
-# ---------- 账号与档案（对外服务） ----------
+# ---------- 账号、档案与积分（对外服务，SQLite 单文件库） ----------
 
 DATA_DIR = ROOT / "data"
-AUTH_FILE = DATA_DIR / "auth.json"
-STORE_DIR = DATA_DIR / "store"
-AUTH_LOCK = threading.Lock()
-STORE_LOCK = threading.Lock()
+DB = DATA_DIR / "identity.db"
 SESSION_COOKIE = "bc_session"
 SESSION_SECONDS = 30 * 24 * 3600
 PBKDF2_ROUNDS = 120_000
-# 用户名会变成文件名、也会直接进 DOM，只放中英文、数字和 _ - . ·
+# 用户名是数据库主键、也会直接进 DOM，只放中英文、数字和 _ - . ·
 USERNAME_RE = re.compile(r"[\w.\-·一-龥]{1,20}", re.ASCII)
 STORE_KEYS = ("flow", "atelier")
 MAX_STORE_BODY = 3 * 1024 * 1024
+# 开放注册没有邮箱验证，用每 IP 限注册顶住批量薅积分；内存计数，重启即清
+REGISTER_LIMIT, REGISTER_WINDOW = 5, 3600
+REGISTER_LOG: dict[str, list[float]] = {}
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY,
+  salt     TEXT NOT NULL,
+  hash     TEXT NOT NULL,
+  credits  INTEGER NOT NULL,
+  created  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token    TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  at       INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS store (
+  username TEXT NOT NULL,
+  key      TEXT NOT NULL,
+  data     TEXT NOT NULL,
+  updated  INTEGER NOT NULL,
+  PRIMARY KEY (username, key)
+);
+"""
 
 
 def load_env(path: Path) -> None:
@@ -132,28 +157,97 @@ def auth_headers(p: dict) -> dict:
     return {"x-api-key": p["key"]}
 
 
-def load_auth() -> dict:
-    """读 data/auth.json；坏了就当空库重新开始，顺手清掉过期会话。"""
+def initial_credits() -> int:
+    """新账号送多少积分。DESIGN_CREDITS 写在 .env 里，默认 20。"""
     try:
-        data = json.loads(AUTH_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        data = {}
-    users = data.get("users") if isinstance(data, dict) else None
-    raw = data.get("sessions") if isinstance(data, dict) else None
-    now = time.time()
-    sessions = {}
-    if isinstance(raw, dict):
-        for token, v in raw.items():
-            if isinstance(v, dict) and now - v.get("at", 0) < SESSION_SECONDS:
-                sessions[token] = v
-    return {"users": users if isinstance(users, dict) else {}, "sessions": sessions}
+        return max(0, int(env("DESIGN_CREDITS") or 20))
+    except ValueError:
+        return 20
 
 
-def save_auth(data: dict) -> None:
+@contextmanager
+def db():
+    """一个请求一个连接、一个事务；并发交给 SQLite 自己排队。"""
+    con = sqlite3.connect(DB, timeout=30)
+    con.row_factory = sqlite3.Row
+    try:
+        with con:
+            yield con
+    finally:
+        con.close()
+
+
+def init_db() -> None:
     DATA_DIR.mkdir(exist_ok=True)
-    tmp = AUTH_FILE.with_name("auth.json.tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(AUTH_FILE)
+    fresh = not DB.exists()
+    con = sqlite3.connect(DB)
+    try:
+        con.executescript(SCHEMA)
+        con.execute("PRAGMA journal_mode=WAL")
+        con.commit()
+    finally:
+        con.close()
+    if fresh:
+        migrate_json_db()
+    print(f"账号档案  {DB}（SQLite，{'新建' if fresh else '沿用'}）", flush=True)
+
+
+def migrate_json_db() -> None:
+    """把上一版 JSON 存的账号 / 档案搬进库，搬完改名留档。只有库文件不存在时才会走到。"""
+    legacy_auth = DATA_DIR / "auth.json"
+    legacy_store = DATA_DIR / "store"
+    if not legacy_auth.exists() and not legacy_store.is_dir():
+        return
+    moved = 0
+    with db() as con:
+        now = int(time.time())
+        if legacy_auth.exists():
+            try:
+                data = json.loads(legacy_auth.read_text(encoding="utf-8"))
+                for name, u in (data.get("users") or {}).items():
+                    if not isinstance(u, dict):
+                        continue
+                    con.execute(
+                        "INSERT OR IGNORE INTO users (username, salt, hash, credits, created) VALUES (?,?,?,?,?)",
+                        (name, u.get("salt", ""), u.get("hash", ""), initial_credits(), u.get("created") or now),
+                    )
+                for token, s in (data.get("sessions") or {}).items():
+                    if isinstance(s, dict):
+                        con.execute(
+                            "INSERT OR IGNORE INTO sessions (token, username, at) VALUES (?,?,?)",
+                            (token, s.get("user", ""), s.get("at") or now),
+                        )
+            except (OSError, json.JSONDecodeError):
+                pass
+        if legacy_store.is_dir():
+            for path in legacy_store.glob("*.json"):
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                for key, value in data.items():
+                    if key in STORE_KEYS and isinstance(value, dict):
+                        con.execute(
+                            "INSERT OR REPLACE INTO store (username, key, data, updated) VALUES (?,?,?,?)",
+                            (path.stem, key, json.dumps(value, ensure_ascii=False), now),
+                        )
+                        moved += 1
+    if legacy_auth.exists():
+        legacy_auth.rename(legacy_auth.with_name(legacy_auth.name + ".imported"))
+    if legacy_store.is_dir():
+        legacy_store.rename(legacy_store.with_name(legacy_store.name + ".imported"))
+    print(f"账号档案  旧 JSON 数据已并入（{moved} 份档案），原件改名 .imported 留档", flush=True)
+
+
+def register_allowed(ip: str) -> bool:
+    now = time.time()
+    hits = [t for t in REGISTER_LOG.get(ip, []) if now - t < REGISTER_WINDOW]
+    if len(hits) >= REGISTER_LIMIT:
+        REGISTER_LOG[ip] = hits
+        return False
+    hits.append(now)
+    REGISTER_LOG[ip] = hits
+    return True
 
 
 def hash_password(password: str, salt: str = "") -> tuple[str, str]:
@@ -162,25 +256,6 @@ def hash_password(password: str, salt: str = "") -> tuple[str, str]:
         "sha256", password.encode("utf-8"), bytes.fromhex(salt), PBKDF2_ROUNDS
     ).hex()
     return salt, digest
-
-
-def read_store(username: str) -> dict:
-    try:
-        data = json.loads((STORE_DIR / f"{username}.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def write_store(username: str, key: str, value: dict) -> None:
-    """一人一个文件，两个档案（flow / atelier）合在里头，读改写整体走锁。"""
-    STORE_DIR.mkdir(parents=True, exist_ok=True)
-    data = read_store(username)
-    data[key] = value
-    path = STORE_DIR / f"{username}.json"
-    tmp = STORE_DIR / f"{username}.json.tmp"
-    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -225,9 +300,17 @@ class Handler(SimpleHTTPRequestHandler):
             return None
         return payload
 
+    def client_ip(self) -> str:
+        # 挂在反向代理后面时，所有访客的来源都是 127.0.0.1；
+        # 设了 TRUST_PROXY=1 才信 X-Forwarded-For，不然谁都能伪造这个头冒充本机
+        if env("TRUST_PROXY"):
+            xff = self.headers.get("X-Forwarded-For", "")
+            if xff:
+                return xff.split(",")[0].strip()
+        return self.client_address[0]
+
     def is_local(self) -> bool:
-        host = self.client_address[0]
-        return host in ("127.0.0.1", "::1", "localhost")
+        return self.client_ip() in ("127.0.0.1", "::1", "localhost")
 
     def translate_path(self, path):
         # 账号库和密钥永远不该被当静态文件发出去
@@ -251,8 +334,12 @@ class Handler(SimpleHTTPRequestHandler):
         token = self.session_token()
         if not token:
             return None
-        with AUTH_LOCK:
-            return load_auth()["sessions"].get(token, {}).get("user")
+        with db() as con:
+            row = con.execute(
+                "SELECT username FROM sessions WHERE token = ? AND at > ?",
+                (token, int(time.time()) - SESSION_SECONDS),
+            ).fetchone()
+            return row["username"] if row else None
 
     def session_cookie(self, token: str, clear: bool = False) -> str:
         parts = [f"{SESSION_COOKIE}={token}", "Path=/", "HttpOnly", "SameSite=Lax"]
@@ -268,7 +355,14 @@ class Handler(SimpleHTTPRequestHandler):
         parts = urlsplit(self.path)
         route = parts.path.rstrip("/")
         if route == "/api/auth":
-            self.send_json(200, {"user": self.session_user()})
+            user = self.session_user()
+            credits = None
+            if user and not self.is_local():
+                with db() as con:
+                    row = con.execute("SELECT credits FROM users WHERE username = ?", (user,)).fetchone()
+                    credits = row["credits"] if row else None
+            # credits 为 null：没登录，或者本机使用（不限）
+            self.send_json(200, {"user": user, "credits": credits})
             return
         if route == "/api/store":
             user = self.session_user()
@@ -279,8 +373,18 @@ class Handler(SimpleHTTPRequestHandler):
             if key not in STORE_KEYS:
                 self.send_json(400, {"error": "没有这个档案"})
                 return
-            data = read_store(user).get(key)
-            self.send_json(200, {"data": data if isinstance(data, dict) else None})
+            data = None
+            with db() as con:
+                row = con.execute(
+                    "SELECT data FROM store WHERE username = ? AND key = ?", (user, key)
+                ).fetchone()
+            if row:
+                try:
+                    parsed = json.loads(row["data"])
+                    data = parsed if isinstance(parsed, dict) else None
+                except json.JSONDecodeError:
+                    data = None
+            self.send_json(200, {"data": data})
             return
         super().do_GET()
 
@@ -299,10 +403,8 @@ class Handler(SimpleHTTPRequestHandler):
         if action == "logout":
             token = self.session_token()
             if token:
-                with AUTH_LOCK:
-                    data = load_auth()
-                    data["sessions"].pop(token, None)
-                    save_auth(data)
+                with db() as con:
+                    con.execute("DELETE FROM sessions WHERE token = ?", (token,))
             self.send_json(200, {"user": None}, [("Set-Cookie", self.session_cookie("", clear=True))])
             return
 
@@ -315,18 +417,28 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(400, {"error": "密码要 6–128 位"})
             return
 
-        with AUTH_LOCK:
-            data = load_auth()
-            user = data["users"].get(username)
+        with db() as con:
+            row = con.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
             if action == "register":
-                if user:
+                if row:
                     self.send_json(409, {"error": "这个名字已经有人用了"})
                     return
+                if not register_allowed(self.client_ip()):
+                    self.send_json(429, {"error": "这个网络注册太频繁，一小时后再来。"})
+                    return
                 salt, digest = hash_password(password)
-                data["users"][username] = {"salt": salt, "hash": digest, "created": int(time.time())}
+                try:
+                    con.execute(
+                        "INSERT INTO users (username, salt, hash, credits, created) VALUES (?,?,?,?,?)",
+                        (username, salt, digest, initial_credits(), int(time.time())),
+                    )
+                except sqlite3.IntegrityError:
+                    # 同名注册撞车，SQLite 串行写保住唯一性
+                    self.send_json(409, {"error": "这个名字已经有人用了"})
+                    return
             elif action == "login":
-                if not user or not hmac.compare_digest(
-                    hash_password(password, user["salt"])[1], user["hash"]
+                if not row or not hmac.compare_digest(
+                    hash_password(password, row["salt"])[1], row["hash"]
                 ):
                     self.send_json(401, {"error": "用户名或密码不对"})
                     return
@@ -334,8 +446,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_json(400, {"error": "不认识的 action"})
                 return
             token = secrets.token_urlsafe(32)
-            data["sessions"][token] = {"user": username, "at": int(time.time())}
-            save_auth(data)
+            con.execute(
+                "INSERT INTO sessions (token, username, at) VALUES (?,?,?)",
+                (token, username, int(time.time())),
+            )
+            con.execute("DELETE FROM sessions WHERE at < ?", (int(time.time()) - SESSION_SECONDS,))
         self.send_json(200, {"user": username}, [("Set-Cookie", self.session_cookie(token))])
 
     def handle_store(self) -> None:
@@ -351,8 +466,11 @@ class Handler(SimpleHTTPRequestHandler):
         if key not in STORE_KEYS or not isinstance(data, dict):
             self.send_json(400, {"error": "档案格式不对"})
             return
-        with STORE_LOCK:
-            write_store(user, key, data)
+        with db() as con:
+            con.execute(
+                "INSERT OR REPLACE INTO store (username, key, data, updated) VALUES (?,?,?,?)",
+                (user, key, json.dumps(data, ensure_ascii=False), int(time.time())),
+            )
         self.send_json(200, {"ok": True})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -366,8 +484,10 @@ class Handler(SimpleHTTPRequestHandler):
         if route != "/api/design":
             self.send_json(404, {"error": "没有这个接口"})
             return
-        # 对外服务：登录用户也放行设计代理，额度由 .env 那家上游承担
-        if not (self.is_local() or self.session_user()):
+        # 对外服务：登录用户按积分计费（一段设计扣 1 分，本机不限），额度由 .env 那家上游承担
+        user = self.session_user()
+        local = self.is_local()
+        if not (local or user):
             self.send_json(403, {"error": "代理只服务登录用户"})
             return
 
@@ -379,6 +499,27 @@ class Handler(SimpleHTTPRequestHandler):
         payload = self.read_json()
         if payload is None:
             return
+
+        # 先原子预扣一分（credits > 0 才扣得动，天然防并发透支），上游全军覆没再还回去
+        charged = False
+        if user and not local:
+            with db() as con:
+                cur = con.execute(
+                    "UPDATE users SET credits = credits - 1 WHERE username = ? AND credits > 0", (user,)
+                )
+                if cur.rowcount != 1:
+                    self.send_json(
+                        402,
+                        {
+                            "error": (
+                                f"积分用完了：每个账号送 {initial_credits()} 分，"
+                                "「让顾问写设计稿」「出三版视觉」各扣 1 分，上游失败会自动返还。"
+                                "需要更多请联系站长。"
+                            )
+                        },
+                    )
+                    return
+            charged = True
 
         payload.setdefault("max_tokens", 4096)
 
@@ -428,7 +569,15 @@ class Handler(SimpleHTTPRequestHandler):
             print(f"[identity] {failures[-1]}　→ 换下一家", flush=True)
 
         if raw is None:
-            self.send_json(502, {"error": "所有上游都没成：" + "；".join(failures)})
+            if charged:
+                with db() as con:
+                    con.execute("UPDATE users SET credits = credits + 1 WHERE username = ?", (user,))
+            self.send_json(
+                502,
+                {
+                    "error": "所有上游都没成：" + "；".join(failures) + ("。这一单没扣积分。" if charged else "")
+                },
+            )
             return
 
         print(f"[identity] 设计师由 {used['name']} / {used['model']} 作答", flush=True)
@@ -443,10 +592,10 @@ class Handler(SimpleHTTPRequestHandler):
 def main() -> None:
     load_env(ROOT / ".env")
     os.chdir(ROOT)
+    init_db()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     chain = provider_chain()
     print(f"商业身份  http://{HOST}:{PORT}", flush=True)
-    print("账号档案  data/（登录用户一人一份，gitignored）", flush=True)
     if chain:
         print("设计师上游  " + " → ".join(f"{p['name']}/{p['model']}" for p in chain), flush=True)
     else:

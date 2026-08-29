@@ -13,7 +13,7 @@ python3 server.py
 
 想让大模型写设计稿并出视觉：`cp .env.example .env` 按里面的说明填一家上游后重启。没配也能跑：设计稿走规则草稿，视觉走内置预设。
 
-对外提供服务：`HOST=0.0.0.0 python3 server.py`。访客在 `login.html` 注册 / 登录（开放注册，用户名 + 密码，PBKDF2 存哈希），两页都要登录才进；档案按登录用户一人一份存 `data/store/<用户名>.json`，账号会话在 `data/auth.json`——`data/` 已 gitignore，也永远不被当静态文件发出去。设计代理对登录用户开放，上游额度由 `.env` 那家承担；要收紧改 `handle_auth`。
+对外提供服务：`HOST=0.0.0.0 python3 server.py`。访客在 `login.html` 注册 / 登录（开放注册，用户名 + 密码，PBKDF2 存哈希），两页都要登录才进。账号、会话、按用户一人一份的档案（flow + atelier）、积分全在 `data/identity.db`（SQLite，标准库自带；旧的 JSON 数据首次启动自动并入）——`data/` 已 gitignore，也永远不被当静态文件发出去。设计代理对登录用户按积分计费：新账号送 `DESIGN_CREDITS`（默认 20）分，一段设计扣 1 分、上游失败返还、本机使用不限；每 IP 每小时限注册 5 个账号。挂在反向代理后面时 `.env` 设 `TRUST_PROXY=1` 才能拿到真实客户端 IP，否则「本机不限积分」会被全体访客冒用。
 
 代理只认 Anthropic Messages 协议。`.env` 里 `DESIGN_PROVIDER` / `DESIGN_FALLBACK` 决定顺序（默认 kimi → mimo → deepseek），思考默认关。密钥只走 `.env`，由 `server.py` 读取，绝不进浏览器、不进仓库。
 
@@ -57,7 +57,7 @@ js/archive.js       产品版档案：一份人物料 + 多场相遇（存取走
 js/export.js        PNG / 双面 PDF（计算样式内联 → canvas）+ vCard
 js/image-in.js      贴图进档案（二维码）：压 480px 存 PNG data URL
 js/flow.js          产品版交互
-server.py           静态服务 + /api/design 代理（多家上游回落）+ 账号与档案接口
+server.py           静态服务 + /api/design 代理（多家上游回落、按积分计费）+ 账号 / 档案 / 积分（SQLite）
 check-spec.mjs      两份契约守卫 + 档案 / vCard / PDF（node check-spec.mjs）
 ```
 

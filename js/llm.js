@@ -13,6 +13,7 @@ import { availableContacts, sanitizeBrief } from "./brief.js";
 import { sanitizeSpec } from "./style-spec.js";
 import { designCard, printIssues } from "./design.js";
 import { CONTACT_LABELS, PALETTE_FAMILIES, STANCES } from "./data.js";
+import { refreshUserChip } from "./auth.js";
 
 const COLOR = { type: "string", description: "六位十六进制颜色，如 #1b2428" };
 const REF = {
@@ -462,6 +463,8 @@ async function callDesigner({ system, tool, message, maxTokens }) {
     }
     throw new Error("模型没有按规格返回，再试一次。");
   }
+  // 每段设计都会消耗积分，顺手把页头余额刷成最新的
+  refreshUserChip();
   return block.input;
 }
 

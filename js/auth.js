@@ -32,7 +32,7 @@ export async function requireUser() {
   return null;
 }
 
-/** 往两页页头挂「用户名 · 退出」。 */
+/** 往两页页头挂「用户名 · 积分 · 退出」。 */
 export function mountUserChip() {
   const chip = document.getElementById("user-chip");
   if (!chip || !current) return;
@@ -50,4 +50,19 @@ export function mountUserChip() {
     }
     location.replace("login.html");
   });
+  refreshUserChip();
+}
+
+/** 拉一次余额刷新页头。credits 为 null 表示本机使用、不限。 */
+export async function refreshUserChip() {
+  if (!current || typeof document === "undefined") return;
+  const el = document.getElementById("user-credit");
+  if (!el) return;
+  try {
+    const res = await fetch("/api/auth");
+    const data = await res.json();
+    el.textContent = data.user === current ? (data.credits == null ? "积分不限" : `积分 ${data.credits}`) : "";
+  } catch {
+    /* 刷新失败就保持原样 */
+  }
 }
