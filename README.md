@@ -34,6 +34,61 @@ cp .env.example .env   # 填一家上游的 BASE_URL / API_KEY / MODEL，然后�
 
 配好后先点「让顾问写设计稿」，再点「出三版视觉」。第二步可以挑一个色系模板（墨金、夜橙、朱砂…），不选则三版必须换色相——工作室网页的雪松绿只是界面皮肤，不锁名片。点任意一版采纳；卡面、设计说明和两份生图提示词会同步换掉。
 
+## 部署成线上服务（可选）
+
+直跑适合本机用；要长期对外，配 systemd 常驻 + nginx 反代上 HTTPS。
+
+`/etc/systemd/system/business-card.service`：
+
+```ini
+[Unit]
+Description=business-card
+After=network.target
+
+[Service]
+WorkingDirectory=/path/to/business-card
+ExecStart=/usr/bin/python3 server.py
+User=www-data
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now business-card   # 开机自启 + 立即启动
+```
+
+日常：`sudo systemctl restart business-card` 重启（改完 `server.py` 必须重启，Python 不热加载），`journalctl -u business-card -f` 看日志。
+
+监听地址用环境变量传（如 `Environment=HOST=0.0.0.0` 写进单元文件的 `[Service]`）。注意 `HOST` 写在 `.env` 里**不生效**——它在 `.env` 加载之前就被读了。更推荐的做法是不把 8765 暴露到公网，而是挂反代（顺带拿到 HTTPS）：
+
+nginx 站点（如 `/etc/nginx/sites-enabled/your.domain.conf`）：
+
+```nginx
+server {
+    server_name your.domain;
+    client_max_body_size 20m;      # 档案里带二维码 PNG data URL，默认 1m 可能不够
+    location / {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;   # 设计接口要等大模型，默认 60s 会中途掐断
+    }
+    listen 80;
+}
+```
+
+```bash
+sudo certbot --nginx -d your.domain   # 签 Let's Encrypt 证书 + 自动加 443 和 HTTP 跳转
+```
+
+挂了反代后在 `.env` 里设 `TRUST_PROXY=1`：注册限流改按 `X-Forwarded-For` 里的真实访客 IP 算——不然所有请求的来源都是 127.0.0.1，全站共享一个限流额度。只在有反代时开：直连时这个头谁都能伪造。
+
 ## 有什么
 
 - 问询式选择：场合、用途、人群、阶段（均可「其他」自填）
