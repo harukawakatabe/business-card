@@ -31,6 +31,7 @@ function blank() {
     styleSpec: null,
     candidates: [],
     paletteHint: "",
+    qrOverride: "",
   };
 }
 
@@ -57,6 +58,7 @@ function load() {
         ? parsed.candidates.map((s, i) => sanitizeSpec(s, s?.id || `saved-${i}`))
         : [],
       paletteHint: PALETTE_FAMILIES.some((f) => f.id === parsed.paletteHint) ? parsed.paletteHint : "",
+      qrOverride: ["on", "off"].includes(parsed.qrOverride) ? parsed.qrOverride : "",
     };
   } catch {
     return blank();
@@ -297,6 +299,10 @@ function render(opts = {}) {
     btn.classList.toggle("is-on", (state.edits.backMode || "") === btn.dataset.backmode);
   }
 
+  for (const btn of document.querySelectorAll("#qr-mode [data-qr-mode]")) {
+    btn.classList.toggle("is-on", (state.qrOverride || "") === btn.dataset.qrMode);
+  }
+
   const names = [
     strategy.scene?.label,
     strategy.purpose?.label,
@@ -510,6 +516,14 @@ function bind() {
     const btn = event.target.closest("[data-backmode]");
     if (!btn) return;
     state.edits.backMode = btn.dataset.backmode;
+    persist();
+    render({ skipInputs: true });
+  });
+
+  document.getElementById("qr-mode").addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-qr-mode]");
+    if (!btn) return;
+    state.qrOverride = btn.dataset.qrMode;
     persist();
     render({ skipInputs: true });
   });

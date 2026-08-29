@@ -372,6 +372,21 @@ for (const [i, g] of garbage.entries()) {
   if (!briefRows(briefEn).some(([k, v]) => k === "背面" && v.includes("英文版"))) bad("briefRows 未标注英文背面");
 }
 
+// 5d. 工作室拍板二维码位：on 强制印，off 强制不印，空则听规格的
+{
+  const img = { ...base.profile, qrImage: "data:image/png;base64,x" };
+  const stateOn = { ...base, qrOverride: "on", profile: img, styleSpec: PRESETS.authority };
+  if (PRESETS.authority.qr.show) bad("对照组预设不该自带二维码位");
+  if (!cardMarkup(compose(stateOn), img, "front").includes("card-qr")) bad("qrOverride=on 未强制印二维码");
+  const stateOff = { ...base, qrOverride: "off", profile: img, styleSpec: PRESETS.credible };
+  if (cardMarkup(compose(stateOff), img, "front").includes("card-qr")) bad("qrOverride=off 未拦下二维码");
+  const stateAuto = { ...base, profile: img, styleSpec: PRESETS.credible };
+  if (!cardMarkup(compose(stateAuto), img, "front").includes("card-qr")) bad("qrOverride 为空应跟随设计规格");
+  if (compose(stateOn).design.spec.qr.show !== true) bad("拍板 on 后 spec.qr.show 应为 true");
+  const offFit = printIssues(compose(stateOff).design, img);
+  if (offFit.some((i) => i.includes("底栏"))) bad("拍板 off 后底栏不应残留二维码占宽问题");
+}
+
 // 6. 模型响应解析：Anthropic 的 tool_use 结构、缺字段、错误响应
 {
   const { requestBrief, requestStyles } = await import("./js/llm.js");

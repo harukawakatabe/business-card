@@ -126,7 +126,7 @@
               <input id="f-tags" data-profile="tags" maxlength="80" placeholder="例如：组织诊断, 增长策略" />
             </div>
             <div class="wide">
-              <label for="in-qr">微信二维码（可空，贴图后由设计稿决定怎么印）</label>
+              <label for="in-qr">微信二维码（可空）</label>
               <div class="qr-row">
                 <div class="qr-slot" id="qr-slot" tabindex="0" contenteditable="plaintext-only" aria-label="二维码图片：点击上传，或聚焦后 Ctrl+V 粘贴"></div>
                 <div class="qr-actions">
@@ -134,6 +134,11 @@
                   <button class="btn ghost" type="button" id="btn-qr-clear" hidden>去掉</button>
                   <input id="in-qr" type="file" accept="image/*" />
                 </div>
+              </div>
+              <div class="stance-row" id="qr-mode">
+                <button class="stance" type="button" data-qr-mode="">跟随设计稿</button>
+                <button class="stance" type="button" data-qr-mode="on">这张要印</button>
+                <button class="stance" type="button" data-qr-mode="off">这张不印</button>
               </div>
               <p class="hint">点击选图，或点一下格子再 ⌘/Ctrl+V 粘贴截图。用白底原图，别用暗色模式的截图。</p>
             </div>

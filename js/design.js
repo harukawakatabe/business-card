@@ -221,7 +221,12 @@ export function designCard(identity, state, override) {
   const resolved = override
     ? { spec: sanitizeSpec(override, override.id || "llm"), source: "llm" }
     : resolveSpec(identity, state);
-  const spec = densityCap(resolved.spec, identity.scene);
+  const densityCapped = densityCap(resolved.spec, identity.scene);
+  // 工作室可以手动拍板二维码位；没表态就听规格的。
+  const spec =
+    state?.qrOverride === "on" || state?.qrOverride === "off"
+      ? { ...densityCapped, qr: { ...densityCapped.qr, show: state.qrOverride === "on" } }
+      : densityCapped;
 
   const masthead = (edits.masthead ?? "").trim() || brief.masthead;
   const top = masthead ? [{ label: masthead }] : [];
