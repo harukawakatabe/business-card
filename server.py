@@ -79,6 +79,10 @@ CREATE TABLE IF NOT EXISTS store (
   updated  INTEGER NOT NULL,
   PRIMARY KEY (username, key)
 );
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 """
 
 
@@ -166,12 +170,12 @@ def initial_credits() -> int:
 
 
 def design_cost() -> float:
-    """单段设计（写设计稿 / 出三版视觉）扣多少分。DESIGN_COST 写在 .env 里，默认 12.5；
-    产品页一键生成走两段 = 双倍。500 / 12.5×2 正好 20 次完整生成。"""
+    """单段设计（写设计稿 / 出三版视觉）扣多少分。DESIGN_COST 写在 .env 里，默认 25；
+    产品页一键生成走两段 = 50 分。"""
     try:
-        return max(0.0, float(env("DESIGN_COST") or 12.5))
+        return max(0.0, float(env("DESIGN_COST") or 25))
     except ValueError:
-        return 12.5
+        return 25
 
 
 def fmt_credits(n: float) -> str:
@@ -286,6 +290,19 @@ def register_allowed(ip: str) -> bool:
     hits.append(now)
     REGISTER_LOG[ip] = hits
     return True
+
+
+def topup_existing() -> None:
+    """一次性把存量账号的积分补成当前初始值（只跑一次，meta 表记档）。
+
+    不能做成每次启动都补——那等于谁花掉的积分一重启就回血。以后再调
+    DESIGN_CREDITS 也不会自动跟涨，要补就在库里删掉 credits_topup 标记重启。
+    """
+    with db() as con:
+        if con.execute("SELECT value FROM meta WHERE key = 'credits_topup'").fetchone():
+            return
+        con.execute("UPDATE users SET credits = ?", (initial_credits(),))
+        con.execute("INSERT INTO meta (key, value) VALUES ('credits_topup', ?)", (str(int(time.time())),))
 
 
 def hash_password(password: str, salt: str = "") -> tuple[str, str]:
@@ -630,6 +647,7 @@ def main() -> None:
     load_env(ROOT / ".env")
     os.chdir(ROOT)
     init_db()
+    topup_existing()
     ensure_admin()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     chain = provider_chain()

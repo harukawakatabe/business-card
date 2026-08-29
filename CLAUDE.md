@@ -13,7 +13,7 @@ python3 server.py
 
 想让大模型写设计稿并出视觉：`cp .env.example .env` 按里面的说明填一家上游后重启。没配也能跑：设计稿走规则草稿，视觉走内置预设。
 
-对外提供服务：`HOST=0.0.0.0 python3 server.py`。访客在 `login.html` 注册 / 登录（开放注册，用户名 + 密码，PBKDF2 存哈希），两页都要登录才进。账号、会话、按用户一人一份的档案（flow + atelier）、积分全在 `data/identity.db`（SQLite，标准库自带；旧的 JSON 数据首次启动自动并入）——`data/` 已 gitignore，也永远不被当静态文件发出去。设计代理对登录用户按积分计费：新账号送 `DESIGN_CREDITS`（默认 500）分，单段设计扣 `DESIGN_COST`（默认 12.5）分、一键生成两段双倍、上游失败返还；每 IP 每小时限注册 5 个账号。管理员在 `.env` 里配 `ADMIN_USER` / `ADMIN_PASSWORD`（启动自动建号、密码以 .env 为准、积分不限），本机没有特殊待遇。挂在反向代理后面时 `.env` 设 `TRUST_PROXY=1` 才能拿到真实客户端 IP 供限流用。改完 server.py 必须重启进程，Python 不热加载。
+对外提供服务：`HOST=0.0.0.0 python3 server.py`。访客在 `login.html` 注册 / 登录（开放注册，用户名 + 密码，PBKDF2 存哈希），两页都要登录才进。账号、会话、按用户一人一份的档案（flow + atelier）、积分全在 `data/identity.db`（SQLite，标准库自带；旧的 JSON 数据首次启动自动并入）——`data/` 已 gitignore，也永远不被当静态文件发出去。设计代理对登录用户按积分计费：新账号送 `DESIGN_CREDITS`（默认 500）分，单段设计扣 `DESIGN_COST`（默认 25）分、一键生成两段 50 分、上游失败返还；存量账号已一次性补齐（`meta` 表记档，只跑一次，再调初始值不会自动跟涨）；每 IP 每小时限注册 5 个账号。管理员在 `.env` 里配 `ADMIN_USER` / `ADMIN_PASSWORD`（启动自动建号、密码以 .env 为准、积分不限），本机没有特殊待遇。挂在反向代理后面时 `.env` 设 `TRUST_PROXY=1` 才能拿到真实客户端 IP 供限流用。改完 server.py 必须重启进程，Python 不热加载。
 
 代理只认 Anthropic Messages 协议。`.env` 里 `DESIGN_PROVIDER` / `DESIGN_FALLBACK` 决定顺序（默认 kimi → mimo → deepseek），思考默认关。密钥只走 `.env`，由 `server.py` 读取，绝不进浏览器、不进仓库。
 
