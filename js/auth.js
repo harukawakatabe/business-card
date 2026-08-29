@@ -53,7 +53,7 @@ export function mountUserChip() {
   refreshUserChip();
 }
 
-/** 拉一次余额刷新页头。credits 为 null 表示本机使用、不限。 */
+/** 拉一次余额刷新页头。管理员也是普通账号，一样显示余额。 */
 export async function refreshUserChip() {
   if (!current || typeof document === "undefined") return;
   const el = document.getElementById("user-credit");
@@ -61,7 +61,8 @@ export async function refreshUserChip() {
   try {
     const res = await fetch("/api/auth");
     const data = await res.json();
-    el.textContent = data.user === current ? (data.credits == null ? "积分不限" : `积分 ${data.credits}`) : "";
+    el.textContent =
+      data.user === current && data.credits != null ? `积分 ${data.credits}` : "";
   } catch {
     /* 刷新失败就保持原样 */
   }
